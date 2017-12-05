@@ -12,8 +12,10 @@ var (
 )
 
 func main() {
-	flag.Parse()
+	// parse config
 
+	// generate data as slice [][]data of 20000 in total
+	flag.Parse()
 	switch *profileMode {
 	case "cpu":
 		defer profile.Start(profile.ProfilePath(*profileOutDir), profile.CPUProfile).Stop()
@@ -24,8 +26,8 @@ func main() {
 	case "block":
 		defer profile.Start(profile.ProfilePath(*profileOutDir), profile.BlockProfile).Stop()
 	default:
-		return
 	}
 
 	// code for client
+
 }
