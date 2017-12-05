@@ -88,15 +88,15 @@ func NewPolicyFromReader(r io.Reader) (Policy, error) {
 	}
 
 	// validate
-	if err := policy.validate(); err != nil {
+	if err := policy.Validate(); err != nil {
 		return policy, err
 	}
 
 	return policy, nil
 }
 
-// validate make sure that the policy is valid
-func (p Policy) validate() error {
+// Validate makes sure that the policy is valid
+func (p Policy) Validate() error {
 	if err := validator.Validate(p); err != nil {
 		return err
 	}
