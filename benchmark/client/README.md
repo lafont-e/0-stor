@@ -1,13 +1,31 @@
-# Benchmark zstor client
+# zstor benchmark client
 
-Provides tools for benchmarking and profiling zstor client for various scenarios.
+Benchmark client provides tools for benchmarking and profiling zstor client for various scenarios.
 
-Several scenarios can be bechmarked by the benchmarking client.
-Configuration for all requested scenarios can be given from a config file in YAML format (see example of a config file bellow).
-Benchmarking program outputs results for all provided scenarios to an output file in YAML format (see example of an output file bellow).
-
+Configuration for benchmarking scenarios should be given in YAML format (see [example](#yaml-config-file) of a config file bellow). Numerous scenarios can be passed to the benchmarking program in the same config file.
+Benchmarking program outputs results for all provided scenarios to a single output file in YAML format (see [example](#yaml-output-file) of an output file bellow). 
 
 
+Structure of the benchmarking client program is shown bellow. 
+Package `config` is used to parse from a YAML file and validate the config information.
+Package `benchers` provides methods to run benchmarking. Namely,
+`writebenchers.go` implements methods to run benchmarking for writing to zstor;
+`readbenchers.go` implements methods to run benchmarking for reading to zstor.
+`main` function sets up profiling and benchmarking flags and triggers performance tests.
+```
+benchmark
+│
+└───client
+    │   main.go
+    │
+    └───congif 
+    |   │   config.go
+    |   │   
+    └───benchers 
+        │   benchers.go
+        │   writebenchers.go
+        │   readbenchers.go
+```
 
 ## Getting started
 
@@ -17,56 +35,60 @@ go build
 ```
 
 The following optional flags are defined
-```
-		Profiling and benchmarking of the zstor client is implemented.
-		The result of benchmarking will be described in YAML format and written to file.
-		
-		Profiling mode is given using the --profile-mode flag, taking one of the following options:
-			+ cpu
-			+ mem
-			+ trace 
-			+ block
-		In case --profile-mode is not given, no profiling will be performed.
-
-		Output directory for profiling is given by --out-profile flag.
-
-		Config file used to initialize the benchmarking is given by --conf flag. 
-		Default config file is clientConf.yaml
-
-		Output file for the benchmarking result can be given by --out-benchmark flag.
-		Default output file is benchmark.yaml
-
-Flags:
+``` 
       --conf string            path to a config file (default "clientConf.yaml")
   -h, --help                   help for this command
-      --out-benchmark string   path to the output file for benchmarking (default "benchmark.yaml")
-      --out-profile string     path to the output directory for profiling
+      --out-benchmark string   path and filename where benchmarking results are written (default "benchmark.yaml")
+      --out-profile string     path where profiling files are written
       --profile-mode string    enable profiling mode, one of [cpu, mem, trace, block]
 
 ```
 
-For benchmarking with default input/output files call
+Start benchmarking with default input/output files
 ``` 
-./client.go
+./client
 ```
 
-For benchmarking with optional input/output files call
+Start benchmarking with optional input/output files
 ``` 
-./client.go --conf "clientFonfig.yaml" --out-benchmark string "dataset01.yaml"
+./client --conf "clientFonfig.yaml" --out-benchmark string "dataset01.yaml"
 ```
 
-all main function to start benchmarking and profiling
+Start benchmarking and profiling
 ``` 
-./client.go --out-profile "outputProfileInfo" --profile-mode cpu
+./client --out-profile "outputProfileInfo" --profile-mode cpu
 ```
 
-## Example of a YAML config file
-The following example of a config file represents two benchmarking scenarios.
+## YAML config file
+
+Client config contains a list of scenarios. 
+Each scenario is associated with a corresponding scenarioID and provides two sets of parameters: 
+`zstor_config` and `bench_conf`.
+Structure `zstor_config` are nessesary to create a `zstor client` and can be parsed into a type [client.Polisy](https://github.com/zero-os/0-stor/blob/master/client/policy.go) of [zstor client package](https://github.com/zero-os/0-stor/tree/master/client). 
+
+
+Structure `bench_conf` represents benchmarking specific configuration like duration of the performance test, number of operations, output format.
+
+Key `method` provides the method for benchmarking and can take values
+ + `read` - for reading from zstor
+ + `write` - for writing to zstor
+
+One of two parameters `duration` and `operations` has to be provided. If both are given, the benchmarking program terminates as soon as one of the following events occurs:
+ + number of executed operations reached `operations`
+ + timeout
+
+ Key `result_output` specifies interval of the data collection and can take values
+ + per_second
+ + per_minute
+ + per_hour
+
+The following example of a config file represents two benchmarking scenarios `bench1` and `bench2`.
+
 
 ``` yaml
 scenarios:
-  bench1:                                   # name of the scenario
-    zstor_config:                           # zstor config
+  bench1: # name of the first scenario
+    zstor_config: # zstor config
       organization: "<IYO organization>"
       namespace: <IYO namespace>
       iyo_app_id: "<an IYO app ID>"
@@ -86,15 +108,15 @@ scenarios:
       compress: true
       encrypt: false
       encrypt_key: ab345678901234567890123456789012
-    bench_conf:                                 # config for benchmarking 
-      method: write                             # name of a benchmarking method
-      result_output: per_second                 # time interval of data collection
-      duration: 10                              # duration of the benchmarking in seconds
-      operations: 0
-      key_size: 48
-      ValueSize: 128
-  bench2:
-    zstor_config:
+    bench_conf:                    # config for benchmarking 
+      method: write                # name of a benchmarking method
+      result_output: per_second    # time interval of data collection
+      duration: 10                 # duration of the benchmarking in seconds
+      operations: 0                # number of operations
+      key_size: 48                 # key size in bytes
+      ValueSize: 128               # value size in bytes
+  bench2: # name of the second scenario
+    zstor_config: # zstor config
       organization: "<IYO organization>"
       namespace: <IYO namespace>
       iyo_app_id: "<an IYO app ID>"
@@ -113,16 +135,24 @@ scenarios:
       compress: true
       encrypt: false
       encrypt_key: ab345678901234567890123456789012
-    bench_conf:
-      method: write
-      result_output: per_minute
-      duration: 70
-      operations: 20000
-      key_size: 48
-      ValueSize: 128
+    bench_conf:                    # config for benchmarking 
+      method: write                # name of a benchmarking method
+      result_output: per_minute    # time interval of data collection
+      duration: 70                 # duration of the benchmarking in seconds
+      operations: 20000            # number of operations
+      key_size: 48                 # key size in bytes
+      ValueSize: 128               # value size in bytes
 ```
 
-## Example of an output file bellow
+## YAML output file
+
+Benchmarking program writes results of the performance tests to an output file.
+For each benchmarking scenario results are presented in the structure `result`, containing the following keys:
+  + `count` - total number of operations executed
+  + `duration` - total duration of the test
+  + `perinterval` - number of iterations executed per time-unit
+
+All scenario specific configuration is collected in `scenarioconf` key
 
 ``` yaml
 bench1:

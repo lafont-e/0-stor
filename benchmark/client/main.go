@@ -49,8 +49,8 @@ func init() {
 	`
 
 	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.confFile, "conf", "clientConf.yaml", "path to a config file")
-	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path to the output file for the benchmarking result")
-	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "", "path to the output directory for profiling")
+	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
+	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "", "path where profiling files are written")
 	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
 }
 
