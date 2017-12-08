@@ -50,7 +50,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, erro
 	wb.value = generatedata(scenario.BenchConf.ValueSize)
 
 	// initializing client
-	stripJWT(&scenario.Policy)
+	config.SetupPolicy(&scenario.Policy)
 	wb.client, err = client.New(scenario.Policy)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating client: %v", err)

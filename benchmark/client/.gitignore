@@ -1,11 +1,9 @@
-# executable
-
+# executables
 main
 main.exe
-
 client
 client.exe
 
 # config files
-*.yaml
-*.yml
+/*.yaml
+/*.yml
