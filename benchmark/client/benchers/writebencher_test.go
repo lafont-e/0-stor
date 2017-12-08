@@ -1,6 +1,7 @@
 package benchers
 
 import (
+	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
@@ -10,8 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zero-os/0-stor/benchmark/client/config"
 	"github.com/zero-os/0-stor/client"
-	"github.com/zero-os/0-stor/client/meta/embedserver"
-	"github.com/zero-os/0-stor/server"
+	"github.com/zero-os/0-stor/server/api"
+	"github.com/zero-os/0-stor/server/api/grpc"
+	"github.com/zero-os/0-stor/server/db/badger"
 )
 
 const (
@@ -21,27 +23,23 @@ const (
 	duration = 2
 )
 
-func TestWriteBencherRuns(t *testing.T) {
+func testWriteBencherRuns(t *testing.T) {
 	require := require.New(t)
 
 	// setup test servers
-	etcd, err := embedserver.New()
-	require.NoError(err, "fail to start embedded etcd server")
-	defer etcd.Stop()
-
 	servers, serverClean := testServer(t, 4)
 	defer serverClean()
 
 	shards := make([]string, len(servers))
 	for i, server := range servers {
-		shards[i] = server.Addr()
+		shards[i] = server.Address()
 	}
 
 	policy := client.Policy{
 		Organization: "testorg",
 		Namespace:    "namespace1",
 		DataShards:   shards,
-		MetaShards:   []string{etcd.ListenAddr()},
+		MetaShards:   []string{"testserver:123"},
 		IYOAppID:     "id",
 		IYOSecret:    "secret",
 	}
@@ -65,30 +63,24 @@ func TestWriteBencherRuns(t *testing.T) {
 	require.Equal(runs, res.Count)
 }
 
-func TestWriteBencherDuration(t *testing.T) {
+func testWriteBencherDuration(t *testing.T) {
 	require := require.New(t)
 
 	// setup test servers
-	etcd, err := embedserver.New()
-	require.NoError(err, "fail to start embedded etcd server")
-	defer etcd.Stop()
-
 	servers, serverClean := testServer(t, 4)
 	defer serverClean()
 
 	shards := make([]string, len(servers))
 	for i, server := range servers {
-		shards[i] = server.Addr()
+		shards[i] = server.Address()
+		fmt.Println(server.Address())
 	}
 
 	policy := client.Policy{
-		Organization: "testorg",
-		Namespace:    "namespace1",
-		DataShards:   shards,
-		MetaShards:   []string{etcd.ListenAddr()},
-		IYOAppID:     "id",
-		IYOSecret:    "secret",
+		DataShards: shards,
+		MetaShards: []string{"testserver"},
 	}
+	config.SetupPolicy(&policy)
 
 	sc := config.Scenario{
 		Policy: policy,
@@ -109,22 +101,15 @@ func TestWriteBencherDuration(t *testing.T) {
 
 	// check if it ran for about requested duration
 	runDur := r.Duration.Seconds()
-	runDur = round(runDur, 2)
-	require.Equal(float64(duration), runDur,
+	require.Equal(float64(duration), math.Floor(runDur),
 		"rounded run duration should be equal to the requested duration")
 }
 
-func round(f float64, places int) float64 {
-	shift := math.Pow(10, float64(places))
-	f = math.Floor(f * shift)
-	return f / shift
-}
-
 // returns n amount of zstordb servers
-func testServer(t testing.TB, n int) ([]server.StoreServer, func()) {
+func testServer(t testing.TB, n int) ([]api.Server, func()) {
 	require := require.New(t)
 
-	servers := make([]server.StoreServer, n)
+	servers := make([]api.Server, n)
 	dirs := make([]string, n)
 
 	for i := 0; i < n; i++ {
@@ -133,11 +118,16 @@ func testServer(t testing.TB, n int) ([]server.StoreServer, func()) {
 		require.NoError(err)
 		dirs[i] = tmpDir
 
-		server, err := server.New(path.Join(tmpDir, "data"), path.Join(tmpDir, "meta"), nil, 4)
+		db, err := badger.New(path.Join(tmpDir, "data"), path.Join(tmpDir, "meta"))
 		require.NoError(err)
 
-		_, err = server.Listen("localhost:0")
-		require.NoError(err, "server failed to start listening")
+		server, err := grpc.New(db, nil, 4, 0)
+		require.NoError(err)
+
+		go func() {
+			err := server.Listen("localhost:0")
+			require.NoError(err, "server failed to start listening")
+		}()
 
 		servers[i] = server
 	}
@@ -152,4 +142,5 @@ func testServer(t testing.TB, n int) ([]server.StoreServer, func()) {
 	}
 
 	return servers, clean
+
 }

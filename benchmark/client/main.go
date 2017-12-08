@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/zero-os/0-stor/benchmark/client/benchers"
@@ -98,9 +99,12 @@ func root(cmd *cobra.Command) {
 
 	//Run benchmarking for provided scenarios
 	for scID, sc := range clientConf.Scenarios {
-		result := new(benchers.Result)
 		var b benchers.Method
 		var err error
+		var clients []benchers.Method
+		var cc int // client count
+		var wg sync.WaitGroup
+		var results []*benchers.Result
 
 		// define the type of bencher for the method given in scenario
 		benchConstructor, ok := benchers.Methods[sc.BenchConf.Method]
@@ -109,17 +113,43 @@ func root(cmd *cobra.Command) {
 			goto WriteResult
 		}
 
-		// Initialize the benchmarker
-		b, err = benchConstructor(scID, &sc)
+		// get concurrent clients
+		cc = sc.BenchConf.Clients
+		if cc < 1 {
+			cc = 1
+		}
+		clients = make([]benchers.Method, cc)
+		results = make([]*benchers.Result, cc)
+
+		// init clients concurrently
+		for i := range clients {
+			wg.Add(1)
+			go func(i int) {
+				b, err = benchConstructor(scID, &sc)
+				clients[i] = b
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 		if err != nil {
 			goto WriteResult
 		}
-		result, err = b.RunBenchmark()
+
+		// run benchmarks concurrently
+		for i := range clients {
+			wg.Add(1)
+			go func(m benchers.Method, i int) {
+				var result *benchers.Result
+				result, err = b.RunBenchmark()
+				results[i] = result
+				wg.Done()
+			}(clients[i], i)
+		}
+		wg.Wait()
 
 		// collect results of the benchmarking cycle
 	WriteResult:
-		output.Scenarios[scID] = *FormatOutput(result, &sc, err)
-
+		output.Scenarios[scID] = *FormatOutput(results, &sc, err)
 	}
 
 	// write results to file

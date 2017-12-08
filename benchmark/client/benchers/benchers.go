@@ -8,6 +8,10 @@ import (
 	"github.com/zero-os/0-stor/benchmark/client/config"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 const (
 	defaultOperations = 1000000
 )

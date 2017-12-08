@@ -111,6 +111,7 @@ type BenchmarkConfig struct {
 	Output     string `yaml:"result_output"`
 	Duration   int    `yaml:"duration"`
 	Operations int    `yaml:"operations"`
+	Clients    int    `yaml:"clients"`
 	KeySize    int    `yaml:"key_size" validate:"nonzero"`
 	ValueSize  int    `yaml:"ValueSize" validate:"nonzero"`
 }

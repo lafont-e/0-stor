@@ -22,19 +22,19 @@ type OutputFormat struct {
 
 //ScenarioOutputFormat represents a scenario result for outputting
 type ScenarioOutputFormat struct {
-	Result       *benchers.Result
+	Results      []*benchers.Result
 	ScenarioConf *config.Scenario
 	Error        string `yaml:"error"`
 }
 
 //FormatOutput formats the output of the benchmarking program
-func FormatOutput(result *benchers.Result, scenarioConfig *config.Scenario, err error) *ScenarioOutputFormat {
+func FormatOutput(results []*benchers.Result, scenarioConfig *config.Scenario, err error) *ScenarioOutputFormat {
 	output := new(ScenarioOutputFormat)
 	if err != nil {
 		output.Error = err.Error()
 		return output
 	}
-	output.Result = result
+	output.Results = results
 	output.ScenarioConf = scenarioConfig
 	return output
 }
