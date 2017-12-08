@@ -6,12 +6,10 @@ import (
 	"time"
 
 	"github.com/zero-os/0-stor/benchmark/client/config"
-	"github.com/zero-os/0-stor/client"
 )
 
 const (
-	defaultOperations          = 1000000
-	defaultAggregationInterval = time.Second
+	defaultOperations = 1000000
 )
 
 var (
@@ -47,15 +45,6 @@ func generatedata(len int) []byte {
 	return data
 }
 
-// stripJWT sets JWT fields to empty
-// this is to prevent the zstor client creating a JWT token
-// as we benchmark with a non authenticating zstordb
-func stripJWT(p *client.Policy) {
-	p.Organization = ""
-	p.IYOAppID = ""
-	p.IYOSecret = ""
-}
-
 //dataAggregator aggregates generated data to provided result
 func dataAggregator(result *Result, interval time.Duration, signal <-chan struct{}) {
 	var totalCount int
@@ -65,7 +54,11 @@ func dataAggregator(result *Result, interval time.Duration, signal <-chan struct
 		result.Count = *totalCount
 	}(&totalCount)
 
-	tick := time.Tick(interval)
+	tick := make(<-chan time.Time)
+
+	if interval >= time.Second {
+		tick = time.Tick(interval)
+	}
 
 	for {
 		select {
@@ -75,7 +68,7 @@ func dataAggregator(result *Result, interval time.Duration, signal <-chan struct
 			alreadyCounted = totalCount
 		case _, ok := <-signal:
 			if !ok {
-				if totalCount != alreadyCounted {
+				if totalCount != alreadyCounted && interval >= time.Second {
 					result.PerInterval = append(result.PerInterval, totalCount-alreadyCounted)
 				}
 				return

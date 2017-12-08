@@ -40,7 +40,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, erro
 	var ok bool
 	wb.aggregationInterval, ok = ResultOptions[scenario.BenchConf.Output]
 	if !ok {
-		wb.aggregationInterval = defaultAggregationInterval
+		wb.aggregationInterval = -1
 	}
 
 	// generate data

@@ -21,10 +21,6 @@ const (
 	duration = 2
 )
 
-var (
-	testBenchConf = config.BenchmarkConfig{}
-)
-
 func TestWriteBencherRuns(t *testing.T) {
 	require := require.New(t)
 

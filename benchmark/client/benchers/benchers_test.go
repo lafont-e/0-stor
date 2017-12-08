@@ -18,9 +18,10 @@ func TestAggregator(t *testing.T) {
 	signal := make(chan struct{})
 	var wg sync.WaitGroup
 
+	// test without collecting interval data
 	wg.Add(1)
 	go func() {
-		dataAggregator(&wb.result, wb.aggregationInterval, signal)
+		dataAggregator(&wb.result, -1, signal)
 		wg.Done()
 	}()
 
@@ -36,6 +37,25 @@ func TestAggregator(t *testing.T) {
 	}
 
 	require.Equal(runs, wb.result.Count)
+	require.Empty(wb.result.PerInterval, "Interval list should be empty")
+
+	// test with collecting interval data
+	signal = make(chan struct{})
+	wg.Add(1)
+	go func() {
+		dataAggregator(&wb.result, 1*time.Second, signal)
+		wg.Done()
+	}()
+
+	// wait for some data to be aggregated
+	time.Sleep(2 * time.Second)
+	close(signal)
+
+	timedout = waitTimeout(&wg, 30*time.Second)
+	if timedout {
+		require.FailNow("Timed out waiting for aggregator to close")
+	}
+	require.NotEmpty(wb.result.PerInterval, "Interval list should not be empty")
 }
 
 func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {

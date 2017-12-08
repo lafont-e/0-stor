@@ -94,7 +94,7 @@ func root(cmd *cobra.Command) {
 	default:
 	}
 
-	var output OutputFormat
+	output := NewOutputFormat()
 
 	//Run benchmarking for provided scenarios
 	for scID, sc := range clientConf.Scenarios {

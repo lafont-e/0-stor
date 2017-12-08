@@ -4,6 +4,6 @@ main.exe
 client
 client.exe
 
-# config files
+# config/result files
 /*.yaml
 /*.yml

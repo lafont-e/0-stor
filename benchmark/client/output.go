@@ -8,6 +8,13 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// NewOutputFormat returns a new OutputFormat
+func NewOutputFormat() OutputFormat {
+	var o OutputFormat
+	o.Scenarios = make(map[string]ScenarioOutputFormat)
+	return o
+}
+
 // OutputFormat represents the output format of a full benchmark
 type OutputFormat struct {
 	Scenarios map[string]ScenarioOutputFormat
