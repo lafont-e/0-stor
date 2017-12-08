@@ -1,0 +1,11 @@
+# executable
+
+main
+main.exe
+
+client
+client.exe
+
+# config files
+*.yaml
+*.yml
