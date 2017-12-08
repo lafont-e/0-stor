@@ -30,16 +30,6 @@ confClient = "../client/confOrc.yaml"
 # Dictionary of prefixes for scenarioID
 prefixScenarioIDs = {"range"}
 
-# Dictionary of parameters for benchmarking
-parameterDictionary = {"block_size",
-                      "replication_nr",
-                      "replication_max_size"
-                      "distribution_data",
-                      "compress",
-                      "encrypt",
-                      "key_size",
-                      "ValueSize" }
-
 # main routine
 def main():  
     # create scenarios from template yaml file
@@ -52,7 +42,7 @@ def main():
     # TODO: trigger benchmarking tests 
 
     # TEST: this is a test call  
-    call(["../client/client", "-C confOrc.yaml"])
+    # call(["../client/client", "-C confOrc.yaml"])
 
     # TODO: parse the output file
 
@@ -93,24 +83,23 @@ def createScenarios(templateConfFile):
 
             # extract options for different scenarios
             options = templateScenario[pref].split(",")
-            print options
 
             # loop over options to create scenarios
             for idx, opt in enumerate(options):
                 # create new scenario using template
                 scenarioID = parameterID+"_"+opt
-                print scenarioID
+
                 # name the scenario
                 Scenarios['scenarios'][scenarioID] = copy.deepcopy(templateScenario)
+
                 # set parameter of the scenario
                 Scenarios['scenarios'][scenarioID][configStructure][parameterID] = opt
- #               print Scenarios['scenarios'][scenarioID]
- #           print Scenarios['scenarios']
+
     return Scenarios
 
 
-#plotScenario plots graphs
-def plotScenario():
+#plotScenario plots graphs. Test version
+def plotScenario(): 
     with open(yamlFile, 'r') as stream:
         try:
             scenarios = yaml.load(stream)
