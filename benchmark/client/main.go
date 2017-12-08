@@ -22,12 +22,11 @@ var BenchmarkFlags struct {
 }
 
 var (
-	//BenchmarkCmd creates flags
-	BenchmarkCmd = &cobra.Command{}
-)
-
-func init() {
-	BenchmarkCmd.Long = `
+	//benchmarkCmd creates flags
+	benchmarkCmd = &cobra.Command{
+		Use:   "performance testing",
+		Short: "runs benchmarking and profiling of a zstor client",
+		Long: `
 		
 		Profiling and benchmarking of the zstor client is implemented.
 		The result of benchmarking will be described in YAML format and written to file.
@@ -46,12 +45,16 @@ func init() {
 
 		Output file for the benchmarking result can be given by --out-benchmark flag.
 		Default output file is benchmark.yaml
-	`
+	`,
+		Run: func(cmd *cobra.Command, args []string) {},
+	}
+)
 
-	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.confFile, "conf", "clientConf.yaml", "path to a config file")
-	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
-	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "", "path where profiling files are written")
-	BenchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
+func init() {
+	benchmarkCmd.Flags().StringVarP(&BenchmarkFlags.confFile, "conf", "C", "clientConf.yaml", "path to a config file")
+	benchmarkCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
+	benchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "", "path where profiling files are written")
+	benchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
 }
 
 func panicOnError(err error) {
@@ -62,7 +65,8 @@ func panicOnError(err error) {
 
 func main() {
 	// parse flags
-	BenchmarkCmd.Execute()
+	err := benchmarkCmd.Execute()
+	panicOnError(err)
 
 	// open a config file
 	yamlFile, err := os.Open(BenchmarkFlags.confFile)

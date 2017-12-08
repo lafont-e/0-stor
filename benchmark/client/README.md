@@ -29,7 +29,13 @@ benchmark
 
 ## Getting started
 
-Build benchmark client
+In order to start benchmarking at least one [zstor server](https://github.com/zero-os/0-stor/blob/master/docs/gettingstarted.md) have to be set up.
+When running a zstor server `--no-auth` flag has to be given for the sake of performance testing. This option allows to skip the authentification step. Client config still has to provide all necessary fields in order to pass the validation and successfully create a new zstor client.
+```
+zstordb --no-auth -D --listen 127.0.0.1:2379:12345 --data-dir stor1 --meta-dir stor1
+```
+
+Built benchmark client
 ```
 go build
 ```
@@ -51,7 +57,7 @@ Start benchmarking with default input/output files
 
 Start benchmarking with optional input/output files
 ``` 
-./client --conf "clientFonfig.yaml" --out-benchmark string "dataset01.yaml"
+./client --conf "clientFonfig.yaml" --out-benchmark "dataset01.yaml"
 ```
 
 Start benchmarking and profiling
@@ -89,10 +95,10 @@ The following example of a config file represents two benchmarking scenarios `be
 scenarios:
   bench1: # name of the first scenario
     zstor_config: # zstor config
-      organization: "<IYO organization>"
-      namespace: <IYO namespace>
-      iyo_app_id: "<an IYO app ID>"
-      iyo_app_secret: "<an IYO app secret>"
+      organization: "<IYO organization>"    #itsyou.online organization of the 0-stor
+      namespace: <IYO namespace>            #itsyou.online namespace of the 0-stor
+      iyo_app_id: "<an IYO app ID>"         #itsyou.online app/user id
+      iyo_app_secret: "<an IYO app secret>" #itsyou.online app/user secret
       data_shards:
         - 127.0.0.1:12345
         - 127.0.0.1:12346
