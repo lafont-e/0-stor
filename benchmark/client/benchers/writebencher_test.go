@@ -2,6 +2,7 @@ package benchers
 
 import (
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"testing"
@@ -15,6 +16,9 @@ import (
 
 const (
 	testID = "test"
+
+	// test duration in seconds
+	duration = 2
 )
 
 var (
@@ -29,7 +33,7 @@ func TestWriteBencherRuns(t *testing.T) {
 	require.NoError(err, "fail to start embedded etcd server")
 	defer etcd.Stop()
 
-	servers, serverClean := testGRPCServer(t, 4)
+	servers, serverClean := testServer(t, 4)
 	defer serverClean()
 
 	shards := make([]string, len(servers))
@@ -73,7 +77,7 @@ func TestWriteBencherDuration(t *testing.T) {
 	require.NoError(err, "fail to start embedded etcd server")
 	defer etcd.Stop()
 
-	servers, serverClean := testGRPCServer(t, 4)
+	servers, serverClean := testServer(t, 4)
 	defer serverClean()
 
 	shards := make([]string, len(servers))
@@ -94,7 +98,7 @@ func TestWriteBencherDuration(t *testing.T) {
 		Policy: policy,
 		BenchConf: config.BenchmarkConfig{
 			Method:    "write",
-			Duration:  1,
+			Duration:  duration,
 			KeySize:   5,
 			ValueSize: 25,
 		},
@@ -104,11 +108,24 @@ func TestWriteBencherDuration(t *testing.T) {
 	wb, err := NewWriteBencher(testID, &sc)
 	require.NoError(err)
 
-	_, err = wb.RunBenchmark()
+	r, err := wb.RunBenchmark()
 	require.NoError(err)
+
+	// check if it ran for about requested duration
+	runDur := r.Duration.Seconds()
+	runDur = round(runDur, 2)
+	require.Equal(float64(duration), runDur,
+		"rounded run duration should be equal to the requested duration")
 }
 
-func testGRPCServer(t testing.TB, n int) ([]server.StoreServer, func()) {
+func round(f float64, places int) float64 {
+	shift := math.Pow(10, float64(places))
+	f = math.Floor(f * shift)
+	return f / shift
+}
+
+// returns n amount of zstordb servers
+func testServer(t testing.TB, n int) ([]server.StoreServer, func()) {
 	require := require.New(t)
 
 	servers := make([]server.StoreServer, n)

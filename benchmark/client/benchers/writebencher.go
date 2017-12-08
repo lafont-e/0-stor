@@ -14,7 +14,7 @@ type WriteBencher struct {
 	client              *client.Client
 	scenario            *config.Scenario
 	scenarioID          string
-	writekeys           []string
+	writekeys           [][]byte
 	value               []byte
 	opsEmpty            bool
 	result              Result
@@ -31,7 +31,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, erro
 	}
 	wb.scenarioID = scenarioID
 	wb.scenario = scenario
-	if scenario.BenchConf.Operations == 0 {
+	if scenario.BenchConf.Operations <= 0 {
 		wb.opsEmpty = true
 		scenario.BenchConf.Operations = defaultOperations
 	}
@@ -45,7 +45,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, erro
 
 	// generate data
 	for i := 0; i < scenario.BenchConf.Operations; i++ {
-		wb.writekeys = append(wb.writekeys, string(generatedata(scenario.BenchConf.KeySize)))
+		wb.writekeys = append(wb.writekeys, generatedata(scenario.BenchConf.KeySize))
 	}
 	wb.value = generatedata(scenario.BenchConf.ValueSize)
 
@@ -61,39 +61,49 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, erro
 
 //RunBenchmark implements Method.RunBenchmark
 func (wb *WriteBencher) RunBenchmark() (*Result, error) {
-	defer wb.cleanup()
 	if wb.client == nil {
 		return nil, fmt.Errorf("zstor client is nil")
 	}
 
 	var timeout <-chan time.Time
-	if wb.scenario.BenchConf.Duration == 0 {
+	if wb.scenario.BenchConf.Duration <= 0 {
 		timeout = nil
 	} else {
 		timeout = time.After(time.Duration(wb.scenario.BenchConf.Duration) * time.Second)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-
 	signal := make(chan struct{})
-	defer close(signal)
+	var wg sync.WaitGroup
+	var start time.Time
 
-	go dataAggregator(&wb.result, wb.aggregationInterval, signal, &wg)
+	wg.Add(1)
+	go func() {
+		dataAggregator(&wb.result, wb.aggregationInterval, signal)
+		wg.Done()
+	}()
 
-	start := time.Now()
-	defer func(start time.Time, result *Result) {
-		result.Duration = time.Since(start)
-	}(start, &wb.result)
+	defer func() {
+		// set elapsed time
+		wb.result.Duration = time.Since(start)
 
+		// release test data
+		wb.cleanup()
+
+		// close signal
+		close(signal)
+
+		// wait for data aggregator to return
+		wg.Wait()
+	}()
+
+	start = time.Now()
 	for {
 		for _, key := range wb.writekeys {
 			select {
 			case <-timeout:
 				return &wb.result, nil
 			default:
-				wb.client.Write([]byte(key), wb.value, nil)
+				wb.client.Write(key, wb.value, nil)
 				signal <- struct{}{}
 			}
 		}

@@ -19,8 +19,10 @@ func TestAggregator(t *testing.T) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-
-	go dataAggregator(&wb.result, wb.aggregationInterval, signal, &wg)
+	go func() {
+		dataAggregator(&wb.result, wb.aggregationInterval, signal)
+		wg.Done()
+	}()
 
 	for i := 0; i < runs; i++ {
 		signal <- struct{}{}

@@ -2,12 +2,11 @@ package main
 
 import (
 	"errors"
-	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/zero-os/0-stor/benchmark/client/benchers"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/pkg/profile"
 	"github.com/zero-os/0-stor/benchmark/client/config"
@@ -22,8 +21,8 @@ var BenchmarkFlags struct {
 }
 
 var (
-	//benchmarkCmd creates flags
-	benchmarkCmd = &cobra.Command{
+	//rootCmd creates flags
+	rootCmd = &cobra.Command{
 		Use:   "performance testing",
 		Short: "runs benchmarking and profiling of a zstor client",
 		Long: `
@@ -46,38 +45,43 @@ var (
 		Output file for the benchmarking result can be given by --out-benchmark flag.
 		Default output file is benchmark.yaml
 	`,
-		Run: func(cmd *cobra.Command, args []string) {},
+		Run: func(cmd *cobra.Command, args []string) {
+			root(cmd)
+		},
 	}
 )
 
 func init() {
-	benchmarkCmd.Flags().StringVarP(&BenchmarkFlags.confFile, "conf", "C", "clientConf.yaml", "path to a config file")
-	benchmarkCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
-	benchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "", "path where profiling files are written")
-	benchmarkCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
-}
-
-func panicOnError(err error) {
-	if err != nil {
-		panic(err)
-	}
+	rootCmd.Flags().StringVarP(&BenchmarkFlags.confFile, "conf", "C", "config.yaml", "path to a config file")
+	rootCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
+	rootCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "profile", "path where profiling files are written")
+	rootCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
 }
 
 func main() {
-	// parse flags
-	err := benchmarkCmd.Execute()
-	panicOnError(err)
+	rootCmd.Execute()
+}
 
+func root(cmd *cobra.Command) {
 	// open a config file
 	yamlFile, err := os.Open(BenchmarkFlags.confFile)
-	panicOnError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// parse the config file to clientConf structure
 	clientConf, err := config.FromReader(yamlFile)
-	panicOnError(err)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// close config file
+	err = yamlFile.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Start profiling if profiling flag is given
-	// TODO: change flags to cobra
 	switch BenchmarkFlags.profileMode {
 	case "cpu":
 		defer profile.Start(profile.ProfilePath(BenchmarkFlags.profileOutPath), profile.CPUProfile).Stop()
@@ -90,8 +94,7 @@ func main() {
 	default:
 	}
 
-	//Collector of the results of benchmarking
-	resultCollector := make(map[string]OutputFormat)
+	var output OutputFormat
 
 	//Run benchmarking for provided scenarios
 	for scID, sc := range clientConf.Scenarios {
@@ -115,13 +118,13 @@ func main() {
 
 		// collect results of the benchmarking cycle
 	WriteResult:
-		resultCollector[scID] = *FormatOutput(result, &sc, err)
+		output.Scenarios[scID] = *FormatOutput(result, &sc, err)
 
 	}
-	yamlBytes, err := yaml.Marshal(resultCollector)
-	panicOnError(err)
 
-	err = ioutil.WriteFile(BenchmarkFlags.benchmarkOutPath, yamlBytes, 0644)
-	panicOnError(err)
-
+	// write results to file
+	err = writeOutput(BenchmarkFlags.benchmarkOutPath, output)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

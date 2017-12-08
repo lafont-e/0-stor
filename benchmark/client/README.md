@@ -42,10 +42,10 @@ go build
 
 The following optional flags are defined
 ``` 
-      --conf string            path to a config file (default "clientConf.yaml")
+  -C  --conf string            path to a config file (default "clientConf.yaml")
   -h, --help                   help for this command
       --out-benchmark string   path and filename where benchmarking results are written (default "benchmark.yaml")
-      --out-profile string     path where profiling files are written
+      --out-profile string     path where profiling files are written (default "profile")
       --profile-mode string    enable profiling mode, one of [cpu, mem, trace, block]
 
 ```
@@ -70,7 +70,7 @@ Start benchmarking and profiling
 Client config contains a list of scenarios. 
 Each scenario is associated with a corresponding scenarioID and provides two sets of parameters: 
 `zstor_config` and `bench_conf`.
-Structure `zstor_config` are nessesary to create a `zstor client` and can be parsed into a type [client.Polisy](https://github.com/zero-os/0-stor/blob/master/client/policy.go) of [zstor client package](https://github.com/zero-os/0-stor/tree/master/client). 
+Structure `zstor_config` are nessesary to create a `zstor client` and can be parsed into a type [client.Policy](https://github.com/zero-os/0-stor/blob/master/client/policy.go) of [zstor client package](https://github.com/zero-os/0-stor/tree/master/client). 
 
 
 Structure `bench_conf` represents benchmarking specific configuration like duration of the performance test, number of operations, output format.

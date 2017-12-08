@@ -2,9 +2,7 @@
 package benchers
 
 import (
-	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/zero-os/0-stor/benchmark/client/config"
@@ -59,14 +57,12 @@ func stripJWT(p *client.Policy) {
 }
 
 //dataAggregator aggregates generated data to provided result
-func dataAggregator(result *Result, interval time.Duration, signal <-chan struct{}, wg *sync.WaitGroup) {
-	defer wg.Done()
+func dataAggregator(result *Result, interval time.Duration, signal <-chan struct{}) {
 	var totalCount int
 	var alreadyCounted int
 
 	defer func(totalCount *int) {
 		result.Count = *totalCount
-		fmt.Println("defer total time", totalCount)
 	}(&totalCount)
 
 	tick := time.Tick(interval)
@@ -87,5 +83,4 @@ func dataAggregator(result *Result, interval time.Duration, signal <-chan struct
 			totalCount++
 		}
 	}
-
 }

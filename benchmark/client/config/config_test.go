@@ -24,6 +24,9 @@ func TestClientConfig(t *testing.T) {
 	clientConf, err := config.FromReader(yamlFile)
 	require.NoError(err)
 
+	err = yamlFile.Close()
+	require.NoError(err)
+
 	err = clientConf.Validate()
 	require.NoError(err)
 
@@ -45,14 +48,23 @@ func TestInvalidClientConfig(t *testing.T) {
 
 	cc, err := config.FromReader(yamlFile)
 	require.NoError(err)
+
+	err = yamlFile.Close()
+	require.NoError(err)
+
 	sc := cc.Scenarios["bench1"]
 	require.Error(sc.Validate())
 
+	// invalid keysize
 	yamlFile, err = os.Open(invalidKeySizeConfFile)
 	require.NoError(err)
 
 	cc, err = config.FromReader(yamlFile)
 	require.NoError(err)
+
+	err = yamlFile.Close()
+	require.NoError(err)
+
 	sc = cc.Scenarios["bench1"]
 	require.Error(sc.Validate())
 }
