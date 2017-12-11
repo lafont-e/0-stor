@@ -1,6 +1,8 @@
 scenarios:
-  range_block_size:
-    range: 128, 256, 512, 1024, 2048, 4096
+  benchName:
+    parameter:
+      par_id: block_size
+      par_range: 128, 256,  512, 1024, 2048, 4096
     zstor_config:
       organization: "<IYO organization>"
       namespace: <IYO namespace>
@@ -23,7 +25,7 @@ scenarios:
     bench_conf:
       method: write
       result_output: per_second
-      duration: 5
+      duration: 100
       operations: 0
       key_size: 48
       ValueSize: 128
