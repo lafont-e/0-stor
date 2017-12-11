@@ -19,7 +19,7 @@ import (
 const (
 	testID = "test"
 
-	// test duration in seconds
+	// test benchmark duration in seconds
 	duration = 2
 )
 
@@ -142,5 +142,4 @@ func testServer(t testing.TB, n int) ([]api.Server, func()) {
 	}
 
 	return servers, clean
-
 }

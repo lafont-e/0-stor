@@ -9,12 +9,12 @@ import (
 	"github.com/zero-os/0-stor/client"
 )
 
-//WriteBencher writing benchmarker
+//WriteBencher represents a writing benchmarker
 type WriteBencher struct {
 	client              *client.Client
 	scenario            *config.Scenario
 	scenarioID          string
-	writekeys           [][]byte
+	keys                [][]byte
 	value               []byte
 	opsEmpty            bool
 	result              Result
@@ -45,7 +45,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, erro
 
 	// generate data
 	for i := 0; i < scenario.BenchConf.Operations; i++ {
-		wb.writekeys = append(wb.writekeys, generatedata(scenario.BenchConf.KeySize))
+		wb.keys = append(wb.keys, generatedata(scenario.BenchConf.KeySize))
 	}
 	wb.value = generatedata(scenario.BenchConf.ValueSize)
 
@@ -98,7 +98,7 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 
 	start = time.Now()
 	for {
-		for _, key := range wb.writekeys {
+		for _, key := range wb.keys {
 			select {
 			case <-timeout:
 				return &wb.result, nil
@@ -114,6 +114,6 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 }
 
 func (wb *WriteBencher) cleanup() {
-	wb.writekeys = nil
+	wb.keys = nil
 	wb.value = nil
 }
