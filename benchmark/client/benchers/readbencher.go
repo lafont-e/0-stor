@@ -48,9 +48,9 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 
 	// generate data
 	for i := 0; i < scenario.BenchConf.Operations; i++ {
-		rb.keys = append(rb.keys, generatedata(scenario.BenchConf.KeySize))
+		rb.keys = append(rb.keys, generateData(scenario.BenchConf.KeySize))
 	}
-	rb.value = generatedata(scenario.BenchConf.ValueSize)
+	rb.value = generateData(scenario.BenchConf.ValueSize)
 
 	// initializing client
 	config.SetupPolicy(&scenario.Policy)

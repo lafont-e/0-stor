@@ -45,9 +45,9 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 
 	// generate data
 	for i := 0; i < scenario.BenchConf.Operations; i++ {
-		wb.keys = append(wb.keys, generatedata(scenario.BenchConf.KeySize))
+		wb.keys = append(wb.keys, generateData(scenario.BenchConf.KeySize))
 	}
-	wb.value = generatedata(scenario.BenchConf.ValueSize)
+	wb.value = generateData(scenario.BenchConf.ValueSize)
 
 	// initializing client
 	config.SetupPolicy(&scenario.Policy)

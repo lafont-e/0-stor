@@ -57,7 +57,7 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 	return d.T.Seconds(), nil
 }
 
-func generatedata(len int) []byte {
+func generateData(len int) []byte {
 	data := make([]byte, len)
 	rand.Read(data)
 	return data
@@ -66,7 +66,7 @@ func generatedata(len int) []byte {
 //dataAggregator aggregates generated data to provided result
 func dataAggregator(result *Result, interval time.Duration, signal <-chan struct{}) {
 	var totalCount int
-	var alreadyCounted int
+	var intervalCount int
 
 	defer func() {
 		result.Count = totalCount
@@ -82,15 +82,16 @@ func dataAggregator(result *Result, interval time.Duration, signal <-chan struct
 		select {
 		case <-tick:
 			// aggregate data
-			result.PerInterval = append(result.PerInterval, totalCount-alreadyCounted)
-			alreadyCounted = totalCount
+			result.PerInterval = append(result.PerInterval, intervalCount)
+			intervalCount = 0
 		case _, ok := <-signal:
 			if !ok {
-				if totalCount != alreadyCounted && interval >= time.Second {
-					result.PerInterval = append(result.PerInterval, totalCount-alreadyCounted)
+				if intervalCount != 0 && interval >= time.Second {
+					result.PerInterval = append(result.PerInterval, intervalCount)
 				}
 				return
 			}
+			intervalCount++
 			totalCount++
 		}
 	}
