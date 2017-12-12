@@ -1,7 +1,8 @@
 # Class Config defines a class to set up configuration for benchmarking scenarios
-import yaml
-import re
-import copy
+from yaml import load, YAMLError
+from sys import exit
+from re import split
+from copy import deepcopy
 
 class Config:
 
@@ -12,24 +13,24 @@ class Config:
         # read template yaml file
         with open(self.config, 'r') as stream:
             try:
-                self.templateConfig = yaml.load(stream)
-            except yaml.YAMLError as exc:
-                sys.exit(exc)
+                self.templateConfig = load(stream)
+            except YAMLError as exc:
+                exit(exc)
 
-        # first scenario in the config file is treated as a template scenario          
-        self.templateScenarioID = self.templateConfig["scenarios"].keys()[0]
-        self.templateScenario = self.templateConfig["scenarios"][self.templateScenarioID]     
+        # first scenario in the config file is treated as a template scenario       
+        templateScenarioID = list(self.templateConfig["scenarios"].keys())[0]
+        self.templateScenario = self.templateConfig["scenarios"][templateScenarioID]   
 
         # extract benchmarking parameter
         self.benchParameter = self.templateScenario.pop("parameter", None)
-
+        
         # check if parameter is specified
         if self.is_multiscenario():
             self.mode = "multi"
         else:
             self.mode = "mono"
 
-
+    # check if results for multiple scenarios are provided
     def is_multiscenario(self):
         if self.benchParameter == None:
             return False
@@ -39,7 +40,7 @@ class Config:
             return False
 
         # extract range
-        self.options = re.split("\W+", self.benchParameter["par_range"])
+        self.options = split("\W+", self.benchParameter["par_range"])
 
         # check if any options are given
         if len(self.options) == 0:
@@ -72,23 +73,22 @@ class Config:
             # loop over options
             for idx, opt in enumerate(self.options):
                 # create new scenario using template
-                self.scenarioID = self.parameterID+"_"+opt
+                scenarioID = self.parameterID+"_"+opt
 
                 # name the scenario
-                self.scenarios['scenarios'][self.scenarioID] = copy.deepcopy(self.templateScenario)
+                self.scenarios['scenarios'][scenarioID] = deepcopy(self.templateScenario)
 
                 # define type of the parameter
-                parameterType = type(self.scenarios['scenarios'][self.scenarioID][self.configID][self.parameterID])               
+                parameterType = type(self.scenarios['scenarios'][scenarioID][self.configID][self.parameterID])               
 
                 # set parameter of the scenario                
                 try:
-                    self.scenarios['scenarios'][self.scenarioID][self.configID][self.parameterID] = parameterType(opt)
+                    self.scenarios['scenarios'][scenarioID][self.configID][self.parameterID] = parameterType(opt)
                 except:
                     sys.exit("cannot convert {} to {}".format(opt,parameterType))
-
-                print(self.scenarios['scenarios'][self.scenarioID][self.configID][self.parameterID])     
+    
         if self.mode == 'mono':
-            self.scenarios['scenarios'][self.scenarioID] = copy.deepcopy(self.templateScenario)
+            self.scenarios['scenarios']['scenario'] = deepcopy(self.templateScenario)
         
         return self.scenarios
             

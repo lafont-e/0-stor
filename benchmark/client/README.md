@@ -2,34 +2,13 @@
 
 Benchmark client provides tools for benchmarking and profiling zstor client for various scenarios.
 
-Configuration for benchmarking scenarios should be given in YAML format (see [example](#yaml-config-file) of a config file bellow). Numerous scenarios can be passed to the benchmarking program in the same config file.
-Benchmarking program outputs results for all provided scenarios to a single output file in YAML format (see [example](#yaml-output-file) of an output file bellow). 
+Configuration for benchmarking scenarios should be given in YAML format (see [example](#yaml-config-file) of the config file bellow).
+Benchmarking program outputs results for all provided scenarios to a single output file in YAML format (see [example](#yaml-output-file) of the output file bellow). 
 
-
-Structure of the benchmarking client program is shown bellow. 
-Package `config` is used to parse from a YAML file and validate the config information.
-Package `benchers` provides methods to run benchmarking. Namely,
-`writebenchers.go` implements methods to run benchmarking for writing to zstor;
-`readbenchers.go` implements methods to run benchmarking for reading to zstor.
-`main` function sets up profiling and benchmarking flags and triggers performance tests.
-```
-benchmark
-│
-└───client
-    │   main.go
-    │
-    └───congif 
-    |   │   config.go
-    |   │   
-    └───benchers 
-        │   benchers.go
-        │   writebenchers.go
-        │   readbenchers.go
-```
 
 ## Getting started
 
-In order to start benchmarking at least one [zstor server](https://github.com/zero-os/0-stor/blob/master/docs/gettingstarted.md) have to be set up.
+In order to start benchmarking program at least one [zstor server](https://github.com/zero-os/0-stor/blob/master/docs/gettingstarted.md) have to be set up.
 When running a zstor server `--no-auth` flag has to be given for the sake of performance testing. This option allows to skip the authentification step. Client config still has to provide all necessary fields in order to pass the validation and successfully create a new zstor client.
 ```
 zstordb --no-auth -D --listen 127.0.0.1:2379:12345 --data-dir stor1 --meta-dir stor1

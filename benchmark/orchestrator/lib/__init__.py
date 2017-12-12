@@ -1,2 +1,2 @@
-from config import Config
-from output import Output
+from lib.config import Config
+from lib.output import Output

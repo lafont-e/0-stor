@@ -1,10 +1,5 @@
-import yaml
-import time
-import matplotlib.pyplot as plt
-import sys
-import copy
-from subprocess import call
-import re
+from yaml import dump
+from subprocess import run
 from lib import Config
 from lib import Output
 
@@ -20,9 +15,9 @@ def main():
     #confScenarios = "~/go/src/github.com/zero-os/0-stor/benchmark/client/confOrc.yaml"
     confScenarios = "confOrc.yaml"
 
-    print '********************'    
-    print '****Benchmarking****'
-    print '********************' 
+    print('********************')
+    print('****Benchmarking****')
+    print('********************')
 
     # define an object of class Config
     config = Config(templateConfFile)
@@ -32,8 +27,11 @@ def main():
 
     # write scenarios to a yaml file 
     with open(confScenarios, 'w+') as outfile:
-        yaml.dump(scenarios, outfile, default_flow_style=False, default_style='')    
+        dump(scenarios, outfile, default_flow_style=False, default_style='')    
     
+    # TODO: trigger benchmarking program
+ 
+
     # parse output of the benchmarking
     output = Output(fileBenchResult)
 
