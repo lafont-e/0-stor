@@ -109,8 +109,8 @@ func root(cmd *cobra.Command) {
 		var results []*benchers.Result
 
 		// define the type of bencher for the method given in scenario
-		benchConstructor, ok := benchers.Methods[sc.BenchConf.Method]
-		if !ok {
+		benchConstructor := benchers.GetBencherCtor(sc.BenchConf.Method)
+		if benchConstructor == nil {
 			err = errors.New("benchmark method not found")
 			goto WriteResult
 		}

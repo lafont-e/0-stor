@@ -9,19 +9,18 @@ import (
 )
 
 func init() {
+	// seed random generator
 	rand.Seed(time.Now().UnixNano())
 }
 
 const (
-	defaultOperations = 1000000
+	// defaultOperations is set when BenchConf.Operations was not provided
+	defaultOperations = 10000
 )
-
-// BencherCtor represents a benchmarker constructor
-type BencherCtor func(scenarioID string, conf *config.Scenario) (Benchmarker, error)
 
 var (
 	// Methods represent name mapping for benchmarking methods
-	Methods = map[string]BencherCtor{
+	benchers = map[string]BencherCtor{
 		"read":  nil,
 		"write": NewWriteBencher,
 	}
@@ -32,6 +31,9 @@ var (
 		"per_hour":   time.Hour,
 	}
 )
+
+// BencherCtor represents a benchmarker constructor
+type BencherCtor func(scenarioID string, conf *config.Scenario) (Benchmarker, error)
 
 // Benchmarker represents benchmarking methods
 type Benchmarker interface {
@@ -57,13 +59,27 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 	return d.T.Seconds(), nil
 }
 
+// GetBencherCtor returns a BencherCtor that belongs to the provided method string
+// if benchmarking method was not found, nil is returned
+func GetBencherCtor(benchMethod string) BencherCtor {
+	benchConstructor, ok := benchers[benchMethod]
+	if !ok {
+		return nil
+	}
+	return benchConstructor
+}
+
+// generateData generates a byteslice of provided length
+// filled with random data
 func generateData(len int) []byte {
 	data := make([]byte, len)
 	rand.Read(data)
 	return data
 }
 
-//dataAggregator aggregates generated data to provided result
+// dataAggregator aggregates  data received from channel.
+// Keeps track of total count of signals from channel
+// as count of signals per time interval provided.
 func dataAggregator(result *Result, interval time.Duration, signal <-chan struct{}) {
 	var totalCount int
 	var intervalCount int
@@ -72,25 +88,27 @@ func dataAggregator(result *Result, interval time.Duration, signal <-chan struct
 		result.Count = totalCount
 	}()
 
+	// setup ticker
 	tick := make(<-chan time.Time)
-
-	if interval >= time.Second {
+	if interval > 1 {
 		tick = time.Tick(interval)
 	}
 
 	for {
 		select {
 		case <-tick:
-			// aggregate data
+			// aggregate interval data
 			result.PerInterval = append(result.PerInterval, intervalCount)
 			intervalCount = 0
 		case _, ok := <-signal:
+			// channel is closed
 			if !ok {
 				if intervalCount != 0 && interval >= time.Second {
 					result.PerInterval = append(result.PerInterval, intervalCount)
 				}
 				return
 			}
+			// add received signal
 			intervalCount++
 			totalCount++
 		}

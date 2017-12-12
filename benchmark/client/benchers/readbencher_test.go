@@ -13,7 +13,7 @@ func TestReadBencherRuns(t *testing.T) {
 	require := require.New(t)
 
 	// setup test servers
-	etcd, err := embedserver.New()
+	etcd, err := NewEmbeddedServer()
 	require.NoError(err, "fail to start embedded etcd server")
 	defer etcd.Stop()
 	servers, serverClean := testServer(t, 4)
@@ -56,7 +56,7 @@ func TestReadBencherDuration(t *testing.T) {
 	require := require.New(t)
 
 	// setup test servers
-	etcd, err := embedserver.New()
+	etcd, err := NewEmbeddedServer()
 	require.NoError(err, "fail to start embedded etcd server")
 	defer etcd.Stop()
 	servers, serverClean := testServer(t, 4)
@@ -97,7 +97,7 @@ func TestReadBencherDuration(t *testing.T) {
 	require.NoError(err)
 
 	// check if it ran for about requested duration
-	runDur := r.Duration.Seconds()
+	runDur := r.Duration.T.Seconds()
 	require.Equal(float64(duration), math.Floor(runDur),
 		"rounded run duration should be equal to the requested duration")
 }

@@ -23,10 +23,13 @@ const (
 	duration = 2
 )
 
-func testWriteBencherRuns(t *testing.T) {
+func TestWriteBencherRuns(t *testing.T) {
 	require := require.New(t)
 
 	// setup test servers
+	etcd, err := NewEmbeddedServer()
+	require.NoError(err, "fail to start embedded etcd server")
+	defer etcd.Stop()
 	servers, serverClean := testServer(t, 4)
 	defer serverClean()
 
@@ -39,7 +42,7 @@ func testWriteBencherRuns(t *testing.T) {
 		Organization: "testorg",
 		Namespace:    "namespace1",
 		DataShards:   shards,
-		MetaShards:   []string{"testserver:123"},
+		MetaShards:   []string{etcd.ListenAddr()},
 		IYOAppID:     "id",
 		IYOSecret:    "secret",
 	}
@@ -63,10 +66,13 @@ func testWriteBencherRuns(t *testing.T) {
 	require.Equal(runs, res.Count)
 }
 
-func testWriteBencherDuration(t *testing.T) {
+func TestWriteBencherDuration(t *testing.T) {
 	require := require.New(t)
 
 	// setup test servers
+	etcd, err := NewEmbeddedServer()
+	require.NoError(err, "fail to start embedded etcd server")
+	defer etcd.Stop()
 	servers, serverClean := testServer(t, 4)
 	defer serverClean()
 
@@ -78,7 +84,7 @@ func testWriteBencherDuration(t *testing.T) {
 
 	policy := client.Policy{
 		DataShards: shards,
-		MetaShards: []string{"testserver"},
+		MetaShards: []string{etcd.ListenAddr()},
 	}
 	config.SetupPolicy(&policy)
 
@@ -100,7 +106,7 @@ func testWriteBencherDuration(t *testing.T) {
 	require.NoError(err)
 
 	// check if it ran for about requested duration
-	runDur := r.Duration.Seconds()
+	runDur := r.Duration.T.Seconds()
 	require.Equal(float64(duration), math.Floor(runDur),
 		"rounded run duration should be equal to the requested duration")
 }
