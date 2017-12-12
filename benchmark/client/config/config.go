@@ -118,8 +118,8 @@ type BenchmarkConfig struct {
 
 // Validate validates a BenchmarkConfig
 func (bc *BenchmarkConfig) Validate() error {
-	if bc.Duration == 0 && bc.Operations == 0 {
-		return fmt.Errorf("One of duration or operations should be given")
+	if bc.Duration <= 0 && bc.Operations <= 0 {
+		return fmt.Errorf("duration or operations was not provided")
 	}
 
 	return validator.Validate(bc)

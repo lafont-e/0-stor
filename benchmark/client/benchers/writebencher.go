@@ -22,7 +22,7 @@ type WriteBencher struct {
 }
 
 // NewWriteBencher returns a new WriteBencher
-func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Method, error) {
+func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, error) {
 	wb := new(WriteBencher)
 
 	err := scenario.Validate()

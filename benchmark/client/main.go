@@ -6,10 +6,10 @@ import (
 	"os"
 	"sync"
 
+	logger "github.com/Sirupsen/logrus"
+	"github.com/pkg/profile"
 	"github.com/spf13/cobra"
 	"github.com/zero-os/0-stor/benchmark/client/benchers"
-
-	"github.com/pkg/profile"
 	"github.com/zero-os/0-stor/benchmark/client/config"
 )
 
@@ -65,6 +65,7 @@ func main() {
 
 func root(cmd *cobra.Command) {
 	// open a config file
+	logger.Info("Reading config...")
 	yamlFile, err := os.Open(BenchmarkFlags.confFile)
 	if err != nil {
 		log.Fatal(err)
@@ -99,9 +100,10 @@ func root(cmd *cobra.Command) {
 
 	//Run benchmarking for provided scenarios
 	for scID, sc := range clientConf.Scenarios {
-		var b benchers.Method
+		logger.Infof("Setting up benchmark `%s`...", scID)
+		var b benchers.Benchmarker
 		var err error
-		var clients []benchers.Method
+		var clients []benchers.Benchmarker
 		var cc int // client count
 		var wg sync.WaitGroup
 		var results []*benchers.Result
@@ -118,27 +120,23 @@ func root(cmd *cobra.Command) {
 		if cc < 1 {
 			cc = 1
 		}
-		clients = make([]benchers.Method, cc)
+		clients = make([]benchers.Benchmarker, cc)
 		results = make([]*benchers.Result, cc)
 
-		// init clients concurrently
+		// init clients
 		for i := range clients {
-			wg.Add(1)
-			go func(i int) {
-				b, err = benchConstructor(scID, &sc)
-				clients[i] = b
-				wg.Done()
-			}(i)
-		}
-		wg.Wait()
-		if err != nil {
-			goto WriteResult
+			b, err = benchConstructor(scID, &sc)
+			if err != nil {
+				goto WriteResult
+			}
+			clients[i] = b
 		}
 
 		// run benchmarks concurrently
+		logger.Infof("Running benchmark `%s`...", scID)
 		for i := range clients {
 			wg.Add(1)
-			go func(m benchers.Method, i int) {
+			go func(m benchers.Benchmarker, i int) {
 				var result *benchers.Result
 				result, err = b.RunBenchmark()
 				results[i] = result
@@ -154,6 +152,7 @@ func root(cmd *cobra.Command) {
 	}
 
 	// write results to file
+	logger.Info("Benchmarking done! Writing results!")
 	err = writeOutput(BenchmarkFlags.benchmarkOutPath, output)
 	if err != nil {
 		log.Fatal(err)

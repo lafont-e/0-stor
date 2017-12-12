@@ -23,7 +23,7 @@ type ReadBencher struct {
 }
 
 // NewReadBencher returns a new ReadBencher
-func NewReadBencher(scenarioID string, scenario *config.Scenario) (Method, error) {
+func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, error) {
 	rb := new(ReadBencher)
 
 	// validate scenario config

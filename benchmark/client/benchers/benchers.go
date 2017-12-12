@@ -16,9 +16,12 @@ const (
 	defaultOperations = 1000000
 )
 
+// BencherCtor represents a benchmarker constructor
+type BencherCtor func(scenarioID string, conf *config.Scenario) (Benchmarker, error)
+
 var (
 	// Methods represent name mapping for benchmarking methods
-	Methods = map[string]func(scenarioID string, conf *config.Scenario) (Method, error){
+	Methods = map[string]BencherCtor{
 		"read":  nil,
 		"write": NewWriteBencher,
 	}
@@ -30,8 +33,8 @@ var (
 	}
 )
 
-// Method represents benchmarking methods
-type Method interface {
+// Benchmarker represents benchmarking methods
+type Benchmarker interface {
 	// RunBenchmark starts the benchmarking
 	RunBenchmark() (*Result, error)
 }
@@ -65,9 +68,9 @@ func dataAggregator(result *Result, interval time.Duration, signal <-chan struct
 	var totalCount int
 	var alreadyCounted int
 
-	defer func(totalCount *int) {
-		result.Count = *totalCount
-	}(&totalCount)
+	defer func() {
+		result.Count = totalCount
+	}()
 
 	tick := make(<-chan time.Time)
 
