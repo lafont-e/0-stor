@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/siddontang/go/log"
+	log "github.com/Sirupsen/logrus"
 	"github.com/zero-os/0-stor/benchmark/client/config"
 	"github.com/zero-os/0-stor/client"
 )
