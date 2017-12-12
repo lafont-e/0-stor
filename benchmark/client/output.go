@@ -22,9 +22,9 @@ type OutputFormat struct {
 
 //ScenarioOutputFormat represents a scenario result for outputting
 type ScenarioOutputFormat struct {
-	Results      []*benchers.Result
-	ScenarioConf *config.Scenario
-	Error        string `yaml:"error"`
+	Results      []*benchers.Result `yaml:"results,omitempty"`
+	ScenarioConf *config.Scenario   `yaml:"scenario,omitempty"`
+	Error        string             `yaml:"error,omitempty"`
 }
 
 //FormatOutput formats the output of the benchmarking program

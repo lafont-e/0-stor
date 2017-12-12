@@ -39,8 +39,19 @@ type Method interface {
 // Result represents a benchmark result
 type Result struct {
 	Count       int
-	Duration    time.Duration
+	Duration    Duration
 	PerInterval []int
+}
+
+// Duration represents a duration of a test result
+// used for custom YAML output
+type Duration struct {
+	T time.Duration
+}
+
+// MarshalYAML implements yaml.Marshaler.MarshalYAML
+func (d Duration) MarshalYAML() (interface{}, error) {
+	return d.T.Seconds(), nil
 }
 
 func generatedata(len int) []byte {

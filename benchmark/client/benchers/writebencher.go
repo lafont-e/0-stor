@@ -84,7 +84,7 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 
 	defer func() {
 		// set elapsed time
-		wb.result.Duration = time.Since(start)
+		wb.result.Duration.T = time.Since(start)
 
 		// release test data
 		wb.cleanup()
