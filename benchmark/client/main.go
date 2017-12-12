@@ -149,7 +149,8 @@ func root(cmd *cobra.Command) {
 
 		// collect results of the benchmarking cycle
 	WriteResult:
-		output.Scenarios[scID] = *FormatOutput(results, &sc, err)
+		scBuf := sc
+		output.Scenarios[scID] = *FormatOutput(results, &scBuf, err)
 	}
 
 	// write results to file
