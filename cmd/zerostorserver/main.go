@@ -13,6 +13,7 @@ import (
 	"github.com/codegangsta/cli"
 	bagerkv "github.com/dgraph-io/badger"
 	units "github.com/docker/go-units"
+	"github.com/pkg/profile"
 	"github.com/zero-os/0-stor/server"
 	"github.com/zero-os/0-stor/server/config"
 	"github.com/zero-os/0-stor/server/db"
@@ -59,7 +60,11 @@ func main() {
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	log.SetOutput(os.Stdout)
 	settings := config.Settings{}
-	var profileAddr string
+	var (
+		profileAddr   string
+		profileMode   string
+		profileOutput string
+	)
 
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
@@ -108,6 +113,17 @@ func main() {
 			Usage:       "enable asynchronous writes (default: false)",
 			Destination: &settings.AsyncWrite,
 		},
+		cli.StringFlag{
+			Name:        "profile-mode",
+			Usage:       "Select the type of profiler to enable. Can be 'cpu', 'mem','trace','block'.",
+			Destination: &profileMode,
+		},
+		cli.StringFlag{
+			Name:        "profile-ouput",
+			Usage:       "Output directory where the profile result will be written. Required --profile-kind to be set.",
+			Destination: &profileOutput,
+			Value:       ".",
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
@@ -155,6 +171,21 @@ func main() {
 					log.Infof("Failed to enable profiling on %v, err:%v", profileAddr, err)
 				}
 			}()
+		}
+
+		if profileMode != "" {
+			switch profileMode {
+			case "cpu":
+				defer profile.Start(profile.NoShutdownHook, profile.ProfilePath(profileOutput), profile.CPUProfile).Stop()
+			case "mem":
+				defer profile.Start(profile.NoShutdownHook, profile.ProfilePath(profileOutput), profile.MemProfile).Stop()
+			case "trace":
+				defer profile.Start(profile.NoShutdownHook, profile.ProfilePath(profileOutput), profile.TraceProfile).Stop()
+			case "block":
+				defer profile.Start(profile.NoShutdownHook, profile.ProfilePath(profileOutput), profile.BlockProfile).Stop()
+			default:
+				log.Fatalf("profile-kind %s not supported\n", profileMode)
+			}
 		}
 
 		sigChan := make(chan os.Signal, 1)
