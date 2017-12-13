@@ -1,7 +1,8 @@
 from lib import Output
 import sys
+from getopt import getopt
 
-def main(args):
+def main(argv):
     # default path to template yaml file
     input_data = "benchmark.yaml"
 
@@ -19,7 +20,7 @@ def main(args):
                 # set new file for output
                 output_dir = arg          
     except:
-        pass
+        print("default paths are used")
 
     # parse output of the benchmarking
     output = Output(input_data, output_dir)
@@ -28,7 +29,7 @@ def main(args):
     output.plot_per_interval()
 
     # plot and save figures vs parameter IN PROGRESS
-    # output.plot_range()    
+    output.plot_range()    
 
     
 
