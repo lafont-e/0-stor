@@ -10,11 +10,12 @@ BUILD_DATE = $(shell date +%FT%T%z)
 
 SERVER_PACKAGES = $(shell go list ./server/...)
 CLIENT_PACKAGES = $(shell go list ./client/...)
+BENCH_PACKAGES = $(shell go list ./benchmark/...)
 
 ldflags = -extldflags "-static"
 ldflagsversion = -X main.CommitHash=$(COMMIT_HASH) -X main.BuildDate=$(BUILD_DATE) -s -w
 
-all: server cli
+all: server cli bench
 
 cli: $(OUTPUT)
 ifeq ($(GOOS), darwin)
@@ -34,11 +35,22 @@ else
 		go build -ldflags '$(ldflags)$(ldflagsversion)' -o $(OUTPUT)/zerostorserver ./cmd/zerostorserver
 endif
 
+bench: $(OUTPUT)
+ifeq ($(GOOS), darwin)
+	GOOS=$(GOOS) GOARCH=$(GOARCH) \
+	go build -ldflags '$(ldflagsversion)' -o $(OUTPUT)/zstorbench ./cmd/zstorbench
+else
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) \
+		go build -ldflags '$(ldflags)$(ldflagsversion)' -o $(OUTPUT)/zstorbench ./cmd/zstorbench
+endif
+
+
 install: all
 	cp $(OUTPUT)/zerostorcli $(GOPATH)/bin/zerostorcli
 	cp $(OUTPUT)/zerostorserver $(GOPATH)/bin/zerostorserver
+	cp $(OUTPUT)/zstorbench $(GOPATH)/bin/zstorbench
 
-test: testserver testclient
+test: testserver testclient testbench
 
 testrace: testserverrace testclientrace
 
@@ -48,11 +60,17 @@ testserver:
 testclient:
 	go test  -v -timeout $(TIMEOUT) $(CLIENT_PACKAGES)
 
+testbench:
+	go test  -v $(BENCH_PACKAGES)
+
 testserverrace:
 	go test  -v -race $(SERVER_PACKAGES)
 
 testclientrace:
 	go test  -v -race $(CLIENT_PACKAGES)
+
+testracebench:
+	go test  -v -race $(BENCH_PACKAGES)
 
 testcodegen:
 	./utils/scripts/test_codegeneration.sh
@@ -69,4 +87,4 @@ update_deps:
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
 
-.PHONY: $(OUTPUT) zerostorcli 0storserver test testserver testclient testserverrace testcodegen testclientrace
+.PHONY: $(OUTPUT) zerostorcli 0storserver test testserver testclient testserverrace testcodegen testclientrace testbench testracebench

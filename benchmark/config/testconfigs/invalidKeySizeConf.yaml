@@ -1,0 +1,28 @@
+scenarios:
+  bench1:
+    zstor_config:
+      organization: "<IYO organization>"
+      namespace: <IYO namespace>
+      iyo_app_id: "<an IYO app ID>"
+      iyo_app_secret: "<an IYO app secret>"
+      data_shards:
+        - 127.0.0.1:12345
+        - 127.0.0.1:12346
+        - 127.0.0.1:12347
+      meta_shards:
+        - 127.0.0.1:12345
+      block_size: 2048
+      replication_nr: 2
+      replication_max_size: 4096
+      distribution_data: 2
+      distribution_parity: 1
+      compress: true
+      encrypt: false
+      encrypt_key: ab345678901234567890123456789012
+    bench_conf:
+      method: write
+      result_output: per_second
+      duration: 5
+      operations: 
+      key_size: 
+      ValueSize: 128
