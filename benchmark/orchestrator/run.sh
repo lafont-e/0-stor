@@ -15,7 +15,7 @@ export report_path="report"
 python3 setupconf.py -i $bench_config -o $confScenarios
 
 # benchmark client
-../client/client -C $confScenarios --out-benchmark $bench_result
+#../client/client -C $confScenarios --out-benchmark $bench_result
 
 # create report for the benchmarking results
-python3 create_report.py -i $bench_result -o $report_path
+python3 create_report.py -i $bench_result -o $report_path -c $bench_config

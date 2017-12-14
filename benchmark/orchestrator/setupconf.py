@@ -5,6 +5,8 @@ import sys
 from getopt import getopt
 
 def main(argv):
+    run("pwd")
+    run(["../client/client", "-C", "scenariosConf.yaml"]) 
     # default path to template yaml file
     input_config = "templateConf.yaml"
 
@@ -35,7 +37,10 @@ def main(argv):
 
     # write scenarios to a yaml file 
     with open(output_config, 'w+') as outfile:
-        dump(scenarios, outfile, default_flow_style=False, default_style='')    
+        dump(scenarios, outfile, default_flow_style=False, default_style='')   
+
+
+    #run("pwd")
 
 if __name__ == '__main__':
     main(sys.argv[1:])    

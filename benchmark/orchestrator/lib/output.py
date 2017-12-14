@@ -4,6 +4,7 @@ from yaml import load, YAMLError
 from sys import exit
 import matplotlib.pyplot as plt
 import os
+from glob import glob
 
 # Time units
 timeUnits = {'per_second': 1, 'per_minute': 60, 'per_hour': 3600}
@@ -45,7 +46,6 @@ class Output:
             # duration of the benchmarking
             try:
                 duration = float(results['duration'])
-                print("dur = ", duration)
             except:
                 exit('duration format is not valid')        
 
@@ -161,9 +161,7 @@ class Output:
 
             # per_interval represents number of opperations per time unit
             per_interval = results['perinterval']
-
-        print(parameter)        
-        print(throughput)            
+          
         plt.figure()
         plt.plot(parameter, throughput,'o', label=parameter_id)
         plt.legend()
@@ -173,6 +171,36 @@ class Output:
         plt.savefig(name)
         plt.close()
    
+    def create_md(self, directory, conf_file):
+        
+        file_name = directory+"/report.md"
 
+        # read template yaml file
+        with open(conf_file, 'r') as stream:
+            try:
+                config = load(stream)
+            except YAMLError as exc:
+                exit(exc)
+
+        with open(file_name, 'w+') as outfile:
+            outfile.write("# Benchmark report\n")
+
+            # include the orchestrator config
+            outfile.write("## Benchmark config \n ``` yaml\n")
+
+            with open(conf_file, 'r') as f:
+                conf_data = f.read()
+
+            outfile.write(conf_data)
+            outfile.write("\n```")
+
+            # search for figures with title "range..."
+            outfile.write("\n ## Throughput vs parameter \n")
+            for name in [os.path.basename(x) for x in glob(directory+'/*.png')]:
+                if name.startswith('range'):
+                    outfile.write("\n![Fig: throughput vs parameter]("+name+")")
+
+           
+        
                 
                       

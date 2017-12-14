@@ -9,8 +9,12 @@ def main(argv):
     # default path where config for scenarios is written
     output_dir = "report"
 
+    # default path where orchestrator config in given
+    output_dir = "templateConf.yaml"
+    
     try:
-        opts, args = getopt(argv,"hi:o:",["ifile=","ofile="])
+        opts, args = getopt(argv,"i:o:c:",["","","",])
+
         # check if output directories are given
         for opt, arg in opts:
             if opt == '-i':
@@ -18,7 +22,12 @@ def main(argv):
                 input_data = arg
             if opt == '-o':
                 # set new file for output
-                output_dir = arg          
+                output_dir = arg   
+            if opt == '-c':
+                # set new file for output
+                conf_file = arg
+                print("conf = ", conf_file)   
+                       
     except:
         print("default paths are used")
 
@@ -31,6 +40,7 @@ def main(argv):
     # plot and save figures vs parameter IN PROGRESS
     output.plot_range()    
 
+    output.create_md(output_dir, conf_file)
     
 
 if __name__ == '__main__':
