@@ -1,7 +1,7 @@
 # Class Output defines a class to format the output report of the benchmarking program
 
 from yaml import load, YAMLError
-from sys import exit
+import sys
 import matplotlib.pyplot as plt
 import os
 from glob import glob
@@ -11,20 +11,53 @@ timeUnits = {'per_second': 1, 'per_minute': 60, 'per_hour': 3600}
 
 class Output:
 
-    def __init__(self, benchFile, directory):
-        self.benchFile = benchFile
-        self.directory = directory
-
-        # create output directory if needed
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)      
-
+    def __init__(self, file_mane):
         # read input file
-        with open(self.benchFile, 'r') as stream:
+        with open(file_mane, 'r') as stream:
             try:
                 self.scenarios = load(stream)['scenarios']
             except YAMLError as exc:
                 exit(exc) 
+
+    def throughput(self):
+        for sc_name in self.scenarios:
+            scenario = self.scenarios[sc_name]
+            if 'error' in scenario:
+                exit(scenario['error'])
+            
+
+            # TODO: decide how to represent result for concurrent clients
+            # TEMPORARY: only the first set of results is considered
+            if 'results' not in scenario:
+                sys.exit("no results are provided")
+
+            results = scenario['results'].pop()           
+
+            # duration of the benchmarking
+            try:
+                duration = float(results.pop('duration'))
+            except:
+                exit('duration is not given, or format is not float')   
+
+            # number of operations in the benchmarking
+            try:
+                count = int(results.pop('count'))
+            except:
+                exit('count is not given, or format is not int')   
+
+            # size of each value
+            try:
+                value_size = int(scenario['scenario']['bench_conf']['ValueSize'])
+            except:
+                exit('value size is not given, or format is not int')   
+
+            # throughput of the benchmarking
+            throughput = int(count*value_size/duration)
+
+            return throughput
+
+                
+        
 
     def plot_per_interval(self): 
         # plot_per_interval creates plot of number of operations vs time
@@ -193,6 +226,13 @@ class Output:
 
             outfile.write(conf_data)
             outfile.write("\n```")
+
+            # check if parameter ranging is defined in config
+            #try:
+                
+            #if 'parameter' in config:
+            #    if 'range' in config['parameter']:
+                    
 
             # search for figures with title "range..."
             outfile.write("\n ## Throughput vs parameter \n")

@@ -1,33 +1,37 @@
-scenarios:
-  benchName:
-    benchmarks:
-    - prime_parameter:
-        id: block_size
-        range: 128, 256,  512, 1024, 2048, 4096
-      second_parameter:
-        id: encrypt
-        range: true, false
-    template:
-      zstor_config:
-        data_shards:
-          - 127.0.0.1:12345
-          - 127.0.0.1:12346
-          - 127.0.0.1:12347
-        meta_shards:
-          - 127.0.0.1:2379
-        block_size: 2048
-        replication_nr: 2
-        replication_max_size: 4096
-        distribution_data: 2
-        distribution_parity: 1
-        compress: true
-        encrypt: false
-        encrypt_key: ab345678901234567890123456789012
-      bench_conf:
-        clients: 1
-        method: write
-        result_output: per_second
-        duration: 10
-        operations: 0
-        key_size: 48
-        ValueSize: 128
+benchmarks:
+- prime_parameter:
+    id: block_size
+    range: 128, 256, 512, 1024, 2048
+  second_parameter:
+    id: encrypt
+    range: true, false
+- prime_parameter:
+    id: block_size
+    range: 128, 256, 512, 1024, 2048
+  second_parameter:
+    id: key_size
+    range: 48, 24 , 100   
+template:
+  zstor_config:
+    data_shards:
+      - 127.0.0.1:12345
+      - 127.0.0.1:12346
+      - 127.0.0.1:12347
+    meta_shards:
+      - 127.0.0.1:2379
+    block_size: 2048
+    replication_nr: 2
+    replication_max_size: 4096
+    distribution_data: 2
+    distribution_parity: 1
+    compress: true
+    encrypt: false
+    encrypt_key: ab345678901234567890123456789012
+  bench_conf:
+    clients: 1
+    method: write
+    result_output: per_second
+    duration: 1
+    operations: 0
+    key_size: 48
+    ValueSize: 128
