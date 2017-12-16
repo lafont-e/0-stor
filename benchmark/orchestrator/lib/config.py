@@ -1,5 +1,6 @@
 # Class Config defines a class to set up configuration for benchmarking scenarios
 #from yaml import load, dump, YAMLError
+import pdb
 import sys
 from re import split
 from copy import deepcopy
@@ -8,25 +9,31 @@ import yaml
 class Benchmark:
 
     def __init__(self):
-        # parameters represent list of all varying parameters
-        #self.PARAMETERS = {'int': {'block_size', 'ValueSize', 'clients'},
-        #            'bool': {'encrypt', 'compress'},
-        #            'string': {'method'}}
-        self.PARAMETERS = {'block_size', 'key_size', 'ValueSize', 'clients', 'encrypt', 'compress', 'method'}
+        # list of supported parameters
+        self.PARAMETERS = {'block_size', 
+                            'key_size', 
+                            'ValueSize', 
+                            'clients', 
+                            'encrypt', 
+                            'compress', 
+                            'method',
+                            'replication_max_size'}
 
-        self.prime = {'id':'', 'range':[]}
-        self.second = {'id':'', 'range':[]}
+        self.prime = {'id':'', 'range':[0]}
+        self.second = {'id':'', 'range':[0]}
 
     
     def valid(self):
-        if self.prime['id'] not in self.PARAMETERS:
-            return False    
+        if self.prime['id']:
+            if (self.prime['id'] not in self.PARAMETERS):
+                return False    
         if len(self.prime['range']) == 0:
             return False
-        if self.second['id'] not in self.PARAMETERS:
-            return False    
-        if len(self.second['range']) == 0:
-            return False        
+        if self.second['id']:
+            if (self.second['id'] not in self.PARAMETERS):
+                return False    
+            if len(self.second['range']) == 0:
+                return False        
         return True
 
 class Config:
@@ -57,11 +64,17 @@ class Config:
         benchmark = Benchmark()
         benchmark_next = self.benchmarks.pop()
 
-        benchmark.prime = benchmark_next.pop('prime_parameter', None)
-        benchmark.prime['range'] = split("\W+", benchmark.prime['range'])
-
-        benchmark.second = benchmark_next.pop('second_parameter', None)
-        benchmark.second['range'] = split("\W+", benchmark.second['range'])
+        benchmark.prime = benchmark_next.pop('prime_parameter', {'id':'','range':[0]})
+        try:        
+            benchmark.prime['range'] = split("\W+", benchmark.prime['range'])
+        except:
+            pass
+        #pdb.set_trace()
+        benchmark.second = benchmark_next.pop('second_parameter', {'id':'','range':[0]})
+        try:
+            benchmark.second['range'] = split("\W+", benchmark.second['range'])
+        except:
+            pass
 
       
         if benchmark.valid() == False:

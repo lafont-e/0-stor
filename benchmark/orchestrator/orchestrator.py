@@ -2,8 +2,9 @@ import pdb #pdb.set_trace()
 from yaml import dump
 from subprocess import run
 from lib import Config
-from lib import Output
 from lib import Report
+from lib import Aggregator
+
 import sys
 from getopt import getopt
 
@@ -45,12 +46,12 @@ def main(argv):
         # pop next benchmark config
         benchmark = config.pop()
 
-        # predefine list of throughput
-        throughput = []
+        # define a new data collection        
+        report.init_aggregator(benchmark)
 
         # loop over range of the secondary parameter
         for val_second in benchmark.second['range']:
-            throughput.append([])
+            report.aggregator.new()
 
             # alter the template config if secondary parameter is given
             if val_second != '':
@@ -67,16 +68,26 @@ def main(argv):
                 # run benchmarking program
                 run(["../client/client", "-C", output_config, "--out-benchmark", result_benchmark_file])
 
+                report.aggregate(result_benchmark_file)
+
+                report.add_timeplot()
+
+                print("report.aggregator.throughput", report.aggregator.throughput)
                 # fetch results of benchmarking
-                output = Output(result_benchmark_file)
+                #output = Output(result_benchmark_file)
 
                 # append results
-                throughput[-1].append(output.throughput()) 
+                #throughput[-1].append(output.throughput()[0]) 
+
+                #print("oytput files = ", output.plot_per_interval())
+                #sys.exit()
+
+#                report.dump_timeplot()
 
 
         
         # add results of the benchmarking to the report
-        report.add(config.template, benchmark, throughput)
+        report.add_aggregation()
   
 
 if __name__ == '__main__':
