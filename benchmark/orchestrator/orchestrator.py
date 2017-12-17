@@ -42,52 +42,44 @@ def main(argv):
     config = Config(input_config)
 
     # loop over all benchmark sonfigs
-    while len(config.benchmarks) > 0:
-        # pop next benchmark config
-        benchmark = config.pop()
+    try:
+        while True:
+            # switch to the next benchmark config
+            benchmark = next(config.benchmark)
 
-        # define a new data collection        
-        report.init_aggregator(benchmark)
+            # define a new data collection        
+            report.init_aggregator(benchmark)
 
-        # loop over range of the secondary parameter
-        for val_second in benchmark.second['range']:
-            report.aggregator.new()
+            # loop over range of the secondary parameter
+            for val_second in benchmark.second.range:
+                report.aggregator.new()
 
-            # alter the template config if secondary parameter is given
-            if val_second != '':
-                config.alter_template(benchmark.second['id'], val_second)
+                # alter the template config if secondary parameter is given
+                if not benchmark.second.empty():
+                    config.alter_template(benchmark.second.id, val_second)
 
-            # loop over the prime parameter
-            for val_prime in benchmark.prime['range']:    
-                # alter the template config
-                config.alter_template(benchmark.prime['id'], val_prime)
+                # loop over the prime parameter
+                for val_prime in benchmark.prime.range:    
+                    # alter the template config if prime parameter is given
+                    if not benchmark.prime.empty():
+                        config.alter_template(benchmark.prime.id, val_prime)                  
 
-                # save new config
-                config.save(output_config)
+                    # save new config
+                    config.save(output_config)
 
-                # run benchmarking program
-                run(["../client/client", "-C", output_config, "--out-benchmark", result_benchmark_file])
+                    # run benchmarking program
+                    run(["../client/client", "-C", output_config, "--out-benchmark", result_benchmark_file])
 
-                report.aggregate(result_benchmark_file)
+                    report.aggregate(result_benchmark_file)
 
-                report.add_timeplot()
+                    report.add_timeplot()
 
-                print("report.aggregator.throughput", report.aggregator.throughput)
-                # fetch results of benchmarking
-                #output = Output(result_benchmark_file)
-
-                # append results
-                #throughput[-1].append(output.throughput()[0]) 
-
-                #print("oytput files = ", output.plot_per_interval())
-                #sys.exit()
-
-#                report.dump_timeplot()
-
-
-        
-        # add results of the benchmarking to the report
-        report.add_aggregation()
+                    print("report.aggregator.throughput", report.aggregator.throughput)
+            
+            # add results of the benchmarking to the report
+            report.add_aggregation()
+    except StopIteration:           # Note 4
+        print("Benchmarking is done")
   
 
 if __name__ == '__main__':

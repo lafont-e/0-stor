@@ -132,8 +132,6 @@ class Report:
 
     def add_aggregation(self):
         self.reports_added += 1
-        #self.benchmark = benchmark
-        #self.throughput = aggregator
 
         # name of the figure
         fig_name = 'fig' +str(self.reports_added) + '.png'
@@ -145,10 +143,16 @@ class Report:
             outfile.write('```yaml \n')
             yaml.dump(self.scenarios, outfile,default_flow_style=False)
             outfile.write('\n```')
-            outfile.write("\n![Fig: throughput vs parameter]({0})".format(fig_name))
-        
-        # create a bar plot
-        self.__bar_plot__( fig_name)
+
+        # check if more then one output was collected   
+    
+        if sum(map(len, self.aggregator.throughput)) > 1:
+            # create a bar plot
+            self.__bar_plot__( fig_name)
+
+            # incerst bar plot to the report
+            with open(self.main_file, 'a+') as outfile:
+                outfile.write("\n![Fig: throughput vs parameter]({0})".format(fig_name))            
 
         # add the table of the data set
         self.__add_table__()
@@ -156,7 +160,7 @@ class Report:
 
     def __bar_plot__(self, fig_name):
         # define range  from prime parameter
-        ticks_labels = self.aggregator.benchmark.prime['range']
+        ticks_labels = self.aggregator.benchmark.prime.range
 
         # af first results are plot vs counting number of samples
         rng = [i for i, tmp in enumerate(ticks_labels)]
@@ -189,16 +193,16 @@ class Report:
         # define color cycle 
         ax.set_color_cycle(['blue', 'red', 'green', 'yellow', 'black', 'brown'])
 
-        ax.set_xlabel(self.aggregator.benchmark.prime['id'])
+        ax.set_xlabel(self.aggregator.benchmark.prime.id)
         ax.set_ylabel('throughput, byte/s')
 
         # loop over data sets
         for i, th in enumerate(self.aggregator.throughput):
             # define plot label
             lb = " "
-            if self.aggregator.benchmark.second['id']:
-                lb = "{0}={1}".format(self.aggregator.benchmark.second['id'],
-                                    self.aggregator.benchmark.second['range'][i])
+            if self.aggregator.benchmark.second.id:
+                lb = "{0}={1}".format(self.aggregator.benchmark.second.id,
+                                    self.aggregator.benchmark.second.range[i])
 
             # add bar plot to the figure
             ax.bar(rng, th, width, label=lb)
@@ -220,7 +224,7 @@ class Report:
         # add hidden table with data
         with open(self.main_file, 'a+') as outfile:
             # create a table
-            outfile.write("""\n <h2> Data set </h3>
+            outfile.write("""\n <h3> Throughput, byte/s: </h3>
             <head> 
                 <style>
                     table, th, td {
@@ -233,11 +237,11 @@ class Report:
                 </style>
             </head>
             <table>  
-                <tr> <th> """ + self.aggregator.benchmark.prime['id'] + "</th>")
+                <tr> <th> """ + self.aggregator.benchmark.prime.id + "</th>")
             # add titles to the columns    
-            for item in self.aggregator.benchmark.second['range']:                
-                if self.aggregator.benchmark.second['id']:
-                    outfile.write("<th> {0} = {1} </th>".format(self.aggregator.benchmark.second['id'],item))
+            for item in self.aggregator.benchmark.second.range:                
+                if self.aggregator.benchmark.second.id:
+                    outfile.write("<th> {0} = {1} </th>".format(self.aggregator.benchmark.second.id,item))
                 else:
                     outfile.write("<th>  </th>")
 
@@ -245,9 +249,9 @@ class Report:
             outfile.write(" </tr> ")
 
             # fill in the table
-            for row, val in enumerate(self.aggregator.benchmark.prime['range']):
+            for row, val in enumerate(self.aggregator.benchmark.prime.range):
                 outfile.write("<tr> <th> {0} </th>".format(val))
-                for col, tmp in enumerate(self.aggregator.benchmark.second['range']):
+                for col, tmp in enumerate(self.aggregator.benchmark.second.range):
                     outfile.write("<th> {0} </th>".format(str(self.aggregator.throughput[col][row])))
                 outfile.write("</tr>")                    
                              
@@ -265,7 +269,7 @@ class Report:
                 outfile.write('\n**Config:**\n```yaml \n')
                 yaml.dump(self.scenarios, outfile, default_flow_style=False)
                 outfile.write('\n```')
-                outfile.write("\n # Report {0} \n".format(str(self.reports_added)))
+                outfile.write("\n _____________ \n".format(str(self.reports_added)))
                 for file in files:
                     outfile.write("\n![Fig](../{0})".format(file))
 
@@ -278,14 +282,10 @@ class Report:
             scenario = self.scenarios[sc_name]
             if 'error' in scenario:
                 exit(scenario['error'])
-            print("en(scenario['results'] ", scenario)
+
             # check if results are given
             if len(scenario['results'])==0:
                 exit('no results')
-            print("PLOT PER INTERV")
-            # TODO: decide how to represent result for concurrent clients
-            # TEMPORARY: only the first set of results is considered
-            #results = scenario['results'][0]
 
             # time_unit_literal represents the time unit for aggregation of the results
             time_unit_literal = scenario['scenario']['bench_conf']['result_output']
@@ -307,13 +307,14 @@ class Report:
                     time_line = [i for i in range(timeUnit, int(duration+timeUnit))]
 
                     plt.figure()
-                    plt.plot(time_line, per_interval[:len(time_line)],'ro--', label=sc_name)
+                    plt.plot(time_line, per_interval[:len(time_line)],'bo--', label=sc_name)
                     plt.xlabel('time, '+time_unit_literal[4:])
                     plt.ylabel('number of operations per '+time_unit_literal[4:])
                     file = '{0}/plot_per_interval_{1}_{2}.png'.format(self.directory, sc_name, str(idx))
                     plt.savefig(file)
                     plt.close()
                     file_names.append(file)
+
         return file_names
 
 

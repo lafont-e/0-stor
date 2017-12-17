@@ -4,37 +4,65 @@ import pdb
 import sys
 from re import split
 from copy import deepcopy
-#from ruamel import yaml
 import yaml
-class Benchmark:
 
-    def __init__(self):
-        # list of supported parameters
-        self.PARAMETERS = {'block_size', 
-                            'key_size', 
-                            'ValueSize', 
-                            'clients', 
-                            'encrypt', 
-                            'compress', 
-                            'method',
-                            'replication_max_size'}
+# list of supported parameters
+Parameters = {'block_size', 
+                'key_size', 
+                'ValueSize', 
+                'clients', 
+                'encrypt', 
+                'compress', 
+                'method',
+                'replication_max_size'}
 
-        self.prime = {'id':'', 'range':[0]}
-        self.second = {'id':'', 'range':[0]}
+class Benchmark():
+# Benchmark defines and validates benchmark parameter   
+    def __init__(self, parameter={}):
+        if parameter:
+            try:
+                self.id = parameter['id']              
+            except:
+                print("parameter", parameter)
+                sys.exit("invalid benchmark: parameter id field is missing")
+            if not self.id:
+                sys.exit("Invalid benchmark: parameter id is empty")             
+            if self.id not in Parameters:
+                sys.exit("invalid benchmark: {0} is not supported".format(self.id))
+            try:
+                self.range = split("\W+", parameter['range'])
+            except:
+                sys.exit("invalid benchmark: parameter range field is missing")
+            if not range:
+                sys.exit("invalid benchmark: no range is given for {0}".format(self.id))
+        else:
+            # return empty Benchmark
+            self.range = [' ']
+            self.id = ''
 
-    
-    def valid(self):
-        if self.prime['id']:
-            if (self.prime['id'] not in self.PARAMETERS):
-                return False    
-        if len(self.prime['range']) == 0:
-            return False
-        if self.second['id']:
-            if (self.second['id'] not in self.PARAMETERS):
-                return False    
-            if len(self.second['range']) == 0:
-                return False        
-        return True
+    def empty(self):
+        if (len(self.range) == 1) and not self.id:
+            return True
+        return False
+
+
+class BenchmarkPair():
+# BenchmarkPair defines prime and secondary parameter for benchmarking
+    def __init__(self, bench_pair={}):
+        if bench_pair:
+            # extract parameters from a dictionary
+            self.prime = Benchmark(bench_pair.pop('prime_parameter', None))
+            self.second = Benchmark(bench_pair.pop('second_parameter', None))
+
+            if not self.prime.empty and self.prime.id == self.second.id:
+                sys.exit("error: primary and secondary parameters should be different")
+            
+            if self.prime.empty() and not self.second.empty():
+                sys.exit("error: if secondary parameter is given, primary parameter has to be given")
+        else:
+            # define empty benchmark
+            self.prime = Benchmark()
+            self.second = Benchmark()            
 
 class Config:
     
@@ -49,15 +77,20 @@ class Config:
         # fetch template config for benchmarking
         self.template = config.pop('template', None)
 
-        if self.template == None:
+        if not self.template:
             sys.exit('no template config given')
 
         # extract benchmarking parameters
-        benchmarks = config.pop('benchmarks', None)
-
-        self.benchmarks = []
-        for bench in benchmarks:
-            self.benchmarks.append(bench)        
+        self.benchmark = iter(self.benchmark_generator(config.pop('benchmarks', None)))
+        #pdb.set_trace()
+    
+    def benchmark_generator(self,benchmarks):       
+        if benchmarks:
+            for bench in benchmarks:
+                yield BenchmarkPair(bench)        
+        else:
+            yield BenchmarkPair()
+        
 
     # pops next benchmark from self.benchmarks
     def pop(self):
