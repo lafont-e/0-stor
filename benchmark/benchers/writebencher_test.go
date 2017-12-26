@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 	"github.com/zero-os/0-stor/server/api"
 	"github.com/zero-os/0-stor/server/api/grpc"
@@ -47,6 +47,7 @@ func TestWriteBencherRuns(t *testing.T) {
 		IYOSecret:    "secret",
 	}
 
+	const runs = 5
 	sc := config.Scenario{
 		Policy: policy,
 		BenchConf: config.BenchmarkConfig{
@@ -54,6 +55,7 @@ func TestWriteBencherRuns(t *testing.T) {
 			Operations: runs,
 			KeySize:    5,
 			ValueSize:  25,
+			Output:     "per_second",
 		},
 	}
 
@@ -63,9 +65,8 @@ func TestWriteBencherRuns(t *testing.T) {
 
 	res, err := wb.RunBenchmark()
 	require.NoError(err)
-	require.Equal(runs, res.Count)
+	require.Equal(int64(runs), res.Count)
 }
-
 func TestWriteBencherDuration(t *testing.T) {
 	require := require.New(t)
 
@@ -95,6 +96,7 @@ func TestWriteBencherDuration(t *testing.T) {
 			Duration:  duration,
 			KeySize:   5,
 			ValueSize: 25,
+			Output:    "per_second",
 		},
 	}
 
@@ -106,9 +108,8 @@ func TestWriteBencherDuration(t *testing.T) {
 	require.NoError(err)
 
 	// check if it ran for about requested duration
-	runDur := r.Duration.T.Seconds()
-	require.Equal(float64(duration), math.Floor(runDur),
-		"rounded run duration should be equal to the requested duration")
+	runDur := r.Duration.Seconds()
+	require.Equal(float64(duration), math.Floor(runDur), "rounded run duration should be equal to the requested duration")
 }
 
 // returns n amount of zstordb servers

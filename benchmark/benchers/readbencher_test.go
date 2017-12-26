@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
 
@@ -33,6 +33,7 @@ func TestReadBencherRuns(t *testing.T) {
 		IYOSecret:    "secret",
 	}
 
+	const runs = 5
 	sc := config.Scenario{
 		Policy: policy,
 		BenchConf: config.BenchmarkConfig{
@@ -49,7 +50,7 @@ func TestReadBencherRuns(t *testing.T) {
 
 	res, err := rb.RunBenchmark()
 	require.NoError(err)
-	require.Equal(runs, res.Count)
+	require.Equal(int64(runs), res.Count)
 }
 
 func TestReadBencherDuration(t *testing.T) {
@@ -77,7 +78,7 @@ func TestReadBencherDuration(t *testing.T) {
 		Policy: policy,
 		BenchConf: config.BenchmarkConfig{
 			Method:     "read",
-			Operations: 50,
+			Operations: 100, // should take more then duration
 			Duration:   duration,
 			KeySize:    5,
 			ValueSize:  25,
@@ -88,16 +89,11 @@ func TestReadBencherDuration(t *testing.T) {
 	rb, err := NewReadBencher(testID, &sc)
 	require.NoError(err)
 
-	// set opsEmpty so that the benchmark wont stop after the set Operations in the config
-	// 100 ops is set so the test wouldn't set default amount of keys
-	// which would take too long for the test
-	readBencher := rb.(*ReadBencher)
-	readBencher.opsEmpty = true
-	r, err := readBencher.RunBenchmark()
+	r, err := rb.RunBenchmark()
 	require.NoError(err)
 
 	// check if it ran for about requested duration
-	runDur := r.Duration.T.Seconds()
+	runDur := r.Duration.Seconds()
 	require.Equal(float64(duration), math.Floor(runDur),
 		"rounded run duration should be equal to the requested duration")
 }

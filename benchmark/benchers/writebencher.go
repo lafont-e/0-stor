@@ -2,23 +2,21 @@ package benchers
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/paulbellamy/ratecounter"
+
+	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
 
 //WriteBencher represents a writing benchmarker
 type WriteBencher struct {
-	client              *client.Client
-	scenario            *config.Scenario
-	scenarioID          string
-	keys                [][]byte
-	value               []byte
-	opsEmpty            bool
-	result              Result
-	aggregationInterval time.Duration
+	client     *client.Client
+	scenario   *config.Scenario
+	scenarioID string
+	keys       [][]byte
+	value      []byte
 }
 
 // NewWriteBencher returns a new WriteBencher
@@ -32,15 +30,8 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 	wb.scenarioID = scenarioID
 	wb.scenario = scenario
 	if scenario.BenchConf.Operations <= 0 {
-		wb.opsEmpty = true
+		// wb.opsEmpty = true
 		scenario.BenchConf.Operations = defaultOperations
-	}
-
-	// set up data aggregation interval
-	var ok bool
-	wb.aggregationInterval, ok = ResultOptions[scenario.BenchConf.Output]
-	if !ok {
-		wb.aggregationInterval = -1
 	}
 
 	// generate data
@@ -72,45 +63,48 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 		timeout = time.After(time.Duration(wb.scenario.BenchConf.Duration) * time.Second)
 	}
 
-	signal := make(chan struct{})
-	var wg sync.WaitGroup
-	var start time.Time
+	// set up data aggregation interval
+	interval, ok := ResultOptions[wb.scenario.BenchConf.Output]
+	if !ok {
+		interval = time.Second
+	}
 
-	wg.Add(1)
-	go func() {
-		dataAggregator(&wb.result, wb.aggregationInterval, signal)
-		wg.Done()
-	}()
+	var (
+		tick         = time.Tick(interval * 1)
+		start        time.Time
+		counter      int64
+		rc           = ratecounter.NewRateCounter(interval)
+		result       = &Result{}
+		maxIteration = len(wb.keys)
+	)
 
-	defer func() {
-		// set elapsed time
-		wb.result.Duration.T = time.Since(start)
-
-		// release test data
-		wb.cleanup()
-
-		// close signal
-		close(signal)
-
-		// wait for data aggregator to return
-		wg.Wait()
-	}()
+	defer wb.cleanup()
 
 	start = time.Now()
-	for {
-		for _, key := range wb.keys {
-			select {
-			case <-timeout:
-				return &wb.result, nil
-			default:
-				wb.client.Write(key, wb.value, nil)
-				signal <- struct{}{}
+	for i := 0; i < maxIteration; i++ {
+		// loop over the available keys
+		key := wb.keys[i%maxIteration]
+
+		select {
+		case <-timeout:
+			i = maxIteration
+		case <-tick:
+			result.PerInterval = append(result.PerInterval, rc.Rate())
+
+		default:
+			_, err := wb.client.Write(key, wb.value, nil)
+			if err != nil {
+				return nil, err
 			}
-		}
-		if !wb.opsEmpty {
-			return &wb.result, nil
+			rc.Incr(1)
+			counter++
 		}
 	}
+	result.Duration = Duration{time.Since(start)}
+	result.Count = counter
+
+	result.PerInterval = append(result.PerInterval, rc.Rate())
+	return result, nil
 }
 
 func (wb *WriteBencher) cleanup() {

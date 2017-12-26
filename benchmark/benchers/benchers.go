@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/zero-os/0-stor/benchmark/config"
 )
 
 func init() {
@@ -15,13 +15,13 @@ func init() {
 
 const (
 	// defaultOperations is set when BenchConf.Operations was not provided
-	defaultOperations = 10000
+	defaultOperations = 1000
 )
 
 var (
 	// Methods represent name mapping for benchmarking methods
 	benchers = map[string]BencherCtor{
-		"read":  nil,
+		"read":  NewReadBencher,
 		"write": NewWriteBencher,
 	}
 	// ResultOptions represent name mapping for benchmarking methods
@@ -43,20 +43,18 @@ type Benchmarker interface {
 
 // Result represents a benchmark result
 type Result struct {
-	Count       int
+	Count       int64
 	Duration    Duration
-	PerInterval []int
+	PerInterval []int64
 }
 
 // Duration represents a duration of a test result
 // used for custom YAML output
-type Duration struct {
-	T time.Duration
-}
+type Duration struct{ time.Duration }
 
 // MarshalYAML implements yaml.Marshaler.MarshalYAML
 func (d Duration) MarshalYAML() (interface{}, error) {
-	return d.T.Seconds(), nil
+	return d.Seconds(), nil
 }
 
 // GetBencherCtor returns a BencherCtor that belongs to the provided method string
@@ -75,42 +73,4 @@ func generateData(len int) []byte {
 	data := make([]byte, len)
 	rand.Read(data)
 	return data
-}
-
-// dataAggregator aggregates  data received from channel.
-// Keeps track of total count of signals from channel
-// as count of signals per time interval provided.
-func dataAggregator(result *Result, interval time.Duration, signal <-chan struct{}) {
-	var totalCount int
-	var intervalCount int
-
-	defer func() {
-		result.Count = totalCount
-	}()
-
-	// setup ticker
-	tick := make(<-chan time.Time)
-	if interval > 1 {
-		tick = time.Tick(interval)
-	}
-
-	for {
-		select {
-		case <-tick:
-			// aggregate interval data
-			result.PerInterval = append(result.PerInterval, intervalCount)
-			intervalCount = 0
-		case _, ok := <-signal:
-			// channel is closed
-			if !ok {
-				if intervalCount != 0 && interval >= time.Second {
-					result.PerInterval = append(result.PerInterval, intervalCount)
-				}
-				return
-			}
-			// add received signal
-			intervalCount++
-			totalCount++
-		}
-	}
 }

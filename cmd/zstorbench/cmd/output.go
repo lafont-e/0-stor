@@ -1,10 +1,10 @@
-package main
+package cmd
 
 import (
 	"io/ioutil"
 
-	"github.com/zero-os/0-stor/benchmark/client/benchers"
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/zero-os/0-stor/benchmark/benchers"
+	"github.com/zero-os/0-stor/benchmark/config"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -23,19 +23,19 @@ type OutputFormat struct {
 //ScenarioOutputFormat represents a scenario result for outputting
 type ScenarioOutputFormat struct {
 	Results      []*benchers.Result `yaml:"results,omitempty"`
-	ScenarioConf *config.Scenario   `yaml:"scenario,omitempty"`
+	ScenarioConf config.Scenario    `yaml:"scenario,omitempty"`
 	Error        string             `yaml:"error,omitempty"`
 }
 
-//FormatOutput formats the output of the benchmarking program
-func FormatOutput(results []*benchers.Result, scenarioConfig *config.Scenario, err error) *ScenarioOutputFormat {
-	output := new(ScenarioOutputFormat)
+//FormatOutput formats the output of the benchmarking scenario
+func FormatOutput(results []*benchers.Result, scenarioConfig config.Scenario, err error) ScenarioOutputFormat {
+	var output ScenarioOutputFormat
+	output.ScenarioConf = scenarioConfig
 	if err != nil {
 		output.Error = err.Error()
 		return output
 	}
 	output.Results = results
-	output.ScenarioConf = scenarioConfig
 	return output
 }
 

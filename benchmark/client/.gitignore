@@ -1,9 +1,0 @@
-# executables
-main
-main.exe
-client
-client.exe
-
-# config/result files
-/*.yaml
-/*.yml

@@ -2,24 +2,20 @@ package benchers
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/paulbellamy/ratecounter"
+	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
 
 //ReadBencher represents a reading benchmarker
 type ReadBencher struct {
-	client              *client.Client
-	scenario            *config.Scenario
-	scenarioID          string
-	keys                [][]byte
-	value               []byte
-	opsEmpty            bool
-	result              Result
-	aggregationInterval time.Duration
+	client     *client.Client
+	scenario   *config.Scenario
+	scenarioID string
+	keys       [][]byte
+	value      []byte
 }
 
 // NewReadBencher returns a new ReadBencher
@@ -36,14 +32,7 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 	rb.scenarioID = scenarioID
 	rb.scenario = scenario
 	if scenario.BenchConf.Operations <= 0 {
-		rb.opsEmpty = true
 		scenario.BenchConf.Operations = defaultOperations
-	}
-	// set up data aggregation interval
-	var ok bool
-	rb.aggregationInterval, ok = ResultOptions[scenario.BenchConf.Output]
-	if !ok {
-		rb.aggregationInterval = -1
 	}
 
 	// generate data
@@ -58,27 +47,15 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating client: %v", err)
 	}
+
 	// set testdata to client
-	var wg sync.WaitGroup
-	errCh := make(chan error)
-	defer close(errCh)
 	for _, key := range rb.keys {
-		wg.Add(1)
-		select {
-		case <-errCh:
+		_, err := rb.client.Write(key, rb.value, nil)
+		if err != nil {
 			return nil, err
-		default:
-			go func(key []byte) {
-				_, err := rb.client.Write(key, rb.value, nil)
-				if err != nil {
-					errCh <- err
-				}
-				wg.Done()
-			}(key)
 		}
 
 	}
-	wg.Wait()
 
 	return rb, nil
 }
@@ -96,48 +73,53 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 		timeout = time.After(time.Duration(rb.scenario.BenchConf.Duration) * time.Second)
 	}
 
-	signal := make(chan struct{})
-	var wg sync.WaitGroup
-	var start time.Time
+	// set up data aggregation interval
+	interval, ok := ResultOptions[rb.scenario.BenchConf.Output]
+	if !ok {
+		interval = time.Second
+	}
 
-	wg.Add(1)
-	go func() {
-		dataAggregator(&rb.result, rb.aggregationInterval, signal)
-		wg.Done()
-	}()
+	var (
+		tick         = time.Tick(interval * 1)
+		start        time.Time
+		counter      int64
+		rc           = ratecounter.NewRateCounter(interval)
+		result       = &Result{}
+		maxIteration = len(rb.keys)
+	)
 
-	defer func() {
-		// set elapsed time
-		rb.result.Duration.T = time.Since(start)
-
-		// release test data
-		rb.cleanup()
-
-		// close signal
-		close(signal)
-
-		// wait for data aggregator to return
-		wg.Wait()
-	}()
+	defer rb.cleanup()
 
 	start = time.Now()
-	for {
-		for _, key := range rb.keys {
-			select {
-			case <-timeout:
-				return &rb.result, nil
-			default:
-				_, _, err := rb.client.Read(key)
-				if err != nil {
-					log.Error(err)
-				}
-				signal <- struct{}{}
+	for i := 0; ; i++ {
+		// loop over the available keys
+		key := rb.keys[i%maxIteration]
+
+		select {
+		case <-timeout:
+			//timeout reached, make exit condition true
+			timeout = nil
+			i = maxIteration
+		case <-tick:
+			result.PerInterval = append(result.PerInterval, rc.Rate())
+		default:
+			_, _, err := rb.client.Read(key)
+			if err != nil {
+				return nil, err
 			}
+			rc.Incr(1)
+			counter++
 		}
-		if !rb.opsEmpty {
-			return &rb.result, nil
+
+		if timeout == nil && i >= maxIteration-1 {
+			break
 		}
 	}
+	result.Duration = Duration{time.Since(start)}
+	result.Count = counter
+
+	result.PerInterval = append(result.PerInterval, rc.Rate())
+	return result, nil
 }
 
 func (rb *ReadBencher) cleanup() {

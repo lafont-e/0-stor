@@ -1,16 +1,15 @@
-package main
+package cmd
 
 import (
 	"errors"
-	"log"
 	"os"
 	"sync"
 
-	logger "github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/profile"
 	"github.com/spf13/cobra"
-	"github.com/zero-os/0-stor/benchmark/client/benchers"
-	"github.com/zero-os/0-stor/benchmark/client/config"
+	"github.com/zero-os/0-stor/benchmark/benchers"
+	"github.com/zero-os/0-stor/benchmark/config"
 )
 
 //BenchmarkFlags defines flags
@@ -20,27 +19,26 @@ var BenchmarkFlags struct {
 	profileOutPath   string
 	profileMode      string
 }
-
 var (
-	//rootCmd creates flags
-	rootCmd = &cobra.Command{
+	// RootCmd creates flags
+	RootCmd = &cobra.Command{
 		Use:   "performance testing",
 		Short: "runs benchmarking and profiling of a zstor client",
 		Long: `
-		
+
 		Profiling and benchmarking of the zstor client is implemented.
 		The result of benchmarking will be described in YAML format and written to file.
-		
+
 		Profiling mode is given using the --profile-mode flag, taking one of the following options:
 			+ cpu
 			+ mem
-			+ trace 
+			+ trace
 			+ block
 		In case --profile-mode is not given, no profiling will be performed.
 
 		Output directory for profiling is given by --out-profile flag.
 
-		Config file used to initialize the benchmarking is given by --conf flag. 
+		Config file used to initialize the benchmarking is given by --conf flag.
 		Default config file is clientConf.yaml
 
 		Output file for the benchmarking result can be given by --out-benchmark flag.
@@ -53,32 +51,16 @@ var (
 )
 
 func init() {
-	rootCmd.Flags().StringVarP(&BenchmarkFlags.confFile, "conf", "C", "config.yaml", "path to a config file")
-	rootCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
-	rootCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "profile", "path where profiling files are written")
-	rootCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
-}
-
-func main() {
-	rootCmd.Execute()
+	RootCmd.Flags().StringVarP(&BenchmarkFlags.confFile, "conf", "C", "config.yaml", "path to a config file")
+	RootCmd.Flags().StringVar(&BenchmarkFlags.benchmarkOutPath, "out-benchmark", "benchmark.yaml", "path and filename where benchmarking results are written")
+	RootCmd.Flags().StringVar(&BenchmarkFlags.profileOutPath, "out-profile", "profile", "path where profiling files are written")
+	RootCmd.Flags().StringVar(&BenchmarkFlags.profileMode, "profile-mode", "", "enable profiling mode, one of [cpu, mem, trace, block]")
 }
 
 func root(cmd *cobra.Command) {
-	// open a config file
-	logger.Info("Reading config...")
-	yamlFile, err := os.Open(BenchmarkFlags.confFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// parse the config file to clientConf structure
-	clientConf, err := config.FromReader(yamlFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// close config file
-	err = yamlFile.Close()
+	// get configuration
+	log.Info("Reading config...")
+	clientConf, err := readConfig(BenchmarkFlags.confFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,7 +82,7 @@ func root(cmd *cobra.Command) {
 
 	//Run benchmarking for provided scenarios
 	for scID, sc := range clientConf.Scenarios {
-		logger.Infof("Setting up benchmark `%s`...", scID)
+		log.Infof("Setting up benchmark `%s`...", scID)
 		var b benchers.Benchmarker
 		var err error
 		var clients []benchers.Benchmarker
@@ -133,7 +115,7 @@ func root(cmd *cobra.Command) {
 		}
 
 		// run benchmarks concurrently
-		logger.Infof("Running benchmark `%s`...", scID)
+		log.Infof("Running benchmark `%s`...", scID)
 		for i := range clients {
 			wg.Add(1)
 			go func(m benchers.Benchmarker, i int) {
@@ -147,14 +129,31 @@ func root(cmd *cobra.Command) {
 
 		// collect results of the benchmarking cycle
 	WriteResult:
-		scBuf := sc
-		output.Scenarios[scID] = *FormatOutput(results, &scBuf, err)
+		output.Scenarios[scID] = FormatOutput(results, sc, err)
 	}
 
 	// write results to file
-	logger.Info("Benchmarking done! Writing results!")
+	log.Info("Benchmarking done! Writing results!")
 	err = writeOutput(BenchmarkFlags.benchmarkOutPath, output)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// readConfig reads a YAML config file and returns a config.ClientConf
+// based on that file
+func readConfig(path string) (*config.ClientConf, error) {
+	yamlFile, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer yamlFile.Close()
+
+	// parse the config file to clientConf structure
+	clientConf, err := config.FromReader(yamlFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return clientConf, nil
 }
