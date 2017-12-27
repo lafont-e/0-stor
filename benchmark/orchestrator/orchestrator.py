@@ -1,12 +1,17 @@
+"""
+    
+    
+    Orchestrator controls benchmarking process and generates report.
+"""
+
 import pdb #pdb.set_trace()
+import sys
+from argparse import ArgumentParser
 from yaml import dump
 from subprocess import run
 from lib import Config
 from lib import Report
 from lib import Aggregator
-
-import sys
-from getopt import getopt
 
 def main(argv):
     # default path to template yaml file
@@ -19,18 +24,19 @@ def main(argv):
     result_benchmark_file = "benchmarkResult.yaml"
     
     report_directory = "report"
-    try:
-        opts, args = getopt(argv,"hi:o:",["ifile=","ofile="])
-        # check if output directories are given
-        for opt, arg in opts:
-            if opt == '-i':
-                # set new file for input
-                input_config = arg
-            if opt == '-o':
-                # set new file for output
-                output_config = arg      
-    except:
-        pass           
+    # TODO - handle flags with argparse
+    #try:
+    #    opts, args = getopt(argv,"hi:o:",["ifile=","ofile="])
+    #    # check if output directories are given
+    #    for opt, arg in opts:
+    #        if opt == '-i':
+    #            # set new file for input
+    #            input_config = arg
+    #        if opt == '-o':
+    #            # set new file for output
+    #            output_config = arg      
+    #except:
+    #    pass           
 
     print('********************')
     print('****Benchmarking****')
@@ -68,7 +74,7 @@ def main(argv):
                     config.save(output_config)
 
                     # run benchmarking program
-                    run(["../client/client", "-C", output_config, "--out-benchmark", result_benchmark_file])
+                    run(["zstorbench", "-C", output_config, "--out-benchmark", result_benchmark_file])
 
                     report.aggregate(result_benchmark_file)
 

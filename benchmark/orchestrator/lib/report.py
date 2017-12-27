@@ -1,3 +1,17 @@
+"""
+Package report contains tools for collecting results of the benchmarking and generating final report. 
+
+Output files show benchmarking results by means of tables and figures allowing for visual representation.
+Report for each benchmark is added to the output files as soon as the benchmark is finished.
+
+Two types of output files are avalible: main report file and scope of timeplots collected throughout the benchamaking. 
+Main report file consists of performance measures and allows for performance comparision among various scenarios.
+Main performance characteristic, reflected in the report is throughtput, indicating average data rate observed in a benchmark.
+Additional report file soncists the scope of timeplots collected during the benchmarking.
+Timeplots show dinamic of number of operations per time unit, observes during the benchmark.
+
+"""
+
 import pdb #pdb.set_trace()
 import os
 import matplotlib.pyplot as plt
@@ -5,12 +19,24 @@ import yaml
 import sys
 
 
-# Time units
-TimeUnits = {'per_second': 1, 'per_minute': 60, 'per_hour': 3600}
+TimeUnits = {'per_second': 1, 
+             'per_minute': 60, 
+               'per_hour': 3600}
 
+FilterKeys={'organization', 
+               'namespace', 
+              'iyo_app_id', 
+              'iyo_app_id', 
+          'iyo_app_secret',
+             'data_shards', 
+             'meta_shards', 
+             'meta_shards',
+             'encrypt_key'}
 
 class Aggregator:
-# Aggregator aggregates data over a set of benchmarks     
+    """
+    Aggregator aggregates average throughput over a set of benchmarks
+    """
     def __init__(self, benchmark):
         self.benchmark = benchmark
         self.throughput= []
@@ -19,78 +45,56 @@ class Aggregator:
         self.throughput.append([])
 
 class Report:
+    """
+    Class Report is used to collect results of benchmarking
+    and to create final report.
+    """
+    def __init__(self, directory='report', report='report.md', timeplots='timeplots.md'):
+        self.directory = directory # set output directory for report files
+        self.main_file =  "{0}/{1}".format(self.directory,report)
+        self.timeplots_collection =  "{0}/{1}".format(self.directory, timeplots)
 
-    def __init__(self, output_directory):
-        # output directory for report files
-        self.directory = output_directory
-        report_file = "report.md"
-        timeplots_file = "time_plots.md"
-        # path to the main report
-        self.main_file =  "{0}/{1}".format(self.directory,report_file)
-        self.timeplots_collection =  "{0}/{1}".format(self.directory, timeplots_file)
-
-        self.scenarios = {}
-
-        # create an output directory
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)  
 
-        # create report files
         with open(self.main_file, 'w+') as outfile:
             outfile.write("# Benchmark report\n")     
-            outfile.write("[Timeplot collection is here]({0})\n".format(timeplots_file))    
+            outfile.write("[Timeplot collection is here]({0})\n".format(timeplots))    
 
         with open(self.timeplots_collection, 'w+') as outfile:
             outfile.write("# Timeplot collection report\n")  
-            outfile.write("[Main report in here]({0}) \n\n".format(report_file)) 
+            outfile.write("[Main report in here]({0}) \n\n".format(report)) 
 
-        # keep track of added reports
-        self.reports_added = 0
+        self.reports_added = 0 # keep track of added reports
+        self.scenarios = {}
 
     def init_aggregator(self, benchmark):
         self.aggregator = Aggregator(benchmark)
 
     def get_scenario_config(self, input_file):
-        # read the input file
+        """
+        Fetch benchmark scenario config
+        """
         with open(input_file, 'r') as stream:
             try:
                 self.scenarios = yaml.load(stream)['scenarios']
             except yaml.YAMLError as exc:
-                sys.exit(exc)         
-        # remove unnecessary fields if included:
+                sys.exit(exc)        
+        self.filter_scenario_config()
+        
+    def filter_scenario_config(self):
+        """
+        Delete irrelevant keys of the scenario config 
+        """
         for sc_name in self.scenarios:
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('organization', None)
-            except:
-                pass
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('namespace', None)
-            except:
-                pass     
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('iyo_app_id', None)
-            except:
-                pass                                   
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('iyo_app_secret', None)
-            except:
-                pass 
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('data_shards', None)
-            except:
-                pass 
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('meta_shards', None)
-            except:
-                pass                     
-            try:
-                self.scenarios[sc_name]['scenario']['zstor_config'].pop('encrypt_key', None)
-            except:
-                pass         
+            for key in FilterKeys:
+                try:
+                    self.scenarios[sc_name]['scenario']['zstor_config'].pop(key, None)
+                except:
+                    pass 
 
     def aggregate(self, input_file):
         self.get_scenario_config(input_file)
-
         th = self.__get_throughput__()
         self.aggregator.throughput[-1].append(th[0])
     
