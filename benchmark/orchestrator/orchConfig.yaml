@@ -21,11 +21,10 @@ benchmarks:
 template:
   zstor_config:
     data_shards:
-      - 127.0.0.1:12345
-      - 127.0.0.1:12346
-      - 127.0.0.1:12347
+      - 127.0.0.1:1200
     meta_shards:
-      - 127.0.0.1:2379
+      - 127.0.0.1:1300
+    meta_shards_nr: 2
     block_size: 2048
     replication_nr: 2
     replication_max_size: 4096

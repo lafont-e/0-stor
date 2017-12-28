@@ -5,6 +5,7 @@ import sys
 from re import split
 from copy import deepcopy
 import yaml
+from lib.zstor_local_setup import SetupZstor
 
 # list of supported parameters
 Parameters = {'block_size', 
@@ -17,7 +18,7 @@ Parameters = {'block_size',
                 'replication_max_size'}
 
 class Benchmark():
-# Benchmark defines and validates benchmark parameter   
+    # Benchmark defines and validates benchmark parameter   
     def __init__(self, parameter={}):
         if parameter:
             try:
@@ -82,8 +83,9 @@ class Config:
 
         # extract benchmarking parameters
         self.benchmark = iter(self.benchmark_generator(config.pop('benchmarks', None)))
-        #pdb.set_trace()
-    
+        
+        self.deploy = SetupZstor()
+
     def benchmark_generator(self,benchmarks):       
         if benchmarks:
             for bench in benchmarks:
@@ -91,29 +93,6 @@ class Config:
         else:
             yield BenchmarkPair()
         
-
-    # pops next benchmark from self.benchmarks
-    def pop(self):
-        benchmark = Benchmark()
-        benchmark_next = self.benchmarks.pop()
-
-        benchmark.prime = benchmark_next.pop('prime_parameter', {'id':'','range':[0]})
-        try:        
-            benchmark.prime['range'] = split("\W+", benchmark.prime['range'])
-        except:
-            pass
-        #pdb.set_trace()
-        benchmark.second = benchmark_next.pop('second_parameter', {'id':'','range':[0]})
-        try:
-            benchmark.second['range'] = split("\W+", benchmark.second['range'])
-        except:
-            pass
-
-      
-        if benchmark.valid() == False:
-            sys.exit("benchmark parameteres are incorrect")
-
-        return benchmark
         
     def alter_template(self, id, val):        
         for item in self.template:
@@ -140,3 +119,65 @@ class Config:
         with open(file_name, 'w+') as outfile:
             yaml.dump(output, outfile, default_flow_style=False, default_style='')     
 
+
+    def get_deployment_config(self):
+        # fetch zstor server deployment config        
+        self.data_shards_nr=self.template['zstor_config']['distribution_data']+ \
+                        self.template['zstor_config']['distribution_parity']
+
+        self.meta_shards_nr = self.template['zstor_config']['meta_shards_nr']
+
+        data_shards = self.template['zstor_config']['data_shards']
+        meta_shards = self.template['zstor_config']['meta_shards']
+        self.port_data = port2int(split(':', data_shards[0])[-1])
+        self.port_meta = port2int(split(':', meta_shards[0])[-1])
+        self.template['zstor_config']['data_shards'] = self.fix_port_list(data_shards, self.data_shards_nr)
+        self.template['zstor_config']['meta_shards'] = self.fix_port_list(meta_shards, self.meta_shards_nr)
+        
+    def deploy_zstor(self):
+        self.deploy.run_zstordb_servers(servers=self.data_shards_nr,
+                                    start_port=self.port_data,)
+        self.deploy.run_etcd_servers(servers=self.meta_shards_nr,
+                                    start_port=self.port_meta)   
+
+    def stop_zstor(self):
+        self.deploy.stop_etcd_servers()
+        self.deploy.stop_zstordb_servers()
+        self.deploy.cleanup()
+
+
+    @staticmethod
+    def fix_port_list(addrs, servers):
+        """ 
+        Correct list of addresses for the local server deployment.
+        
+        @addrs gives list of addresses.
+            Preserve first given address delete others.
+        @servers defines required number of servers.
+        
+        Return list of localhosts using ports starting 
+        from the preserved @addrs and then +1 for each port.
+        """
+        if not addrs:
+            return []
+        try:
+            [host, start_port] = split(':', addrs[0])
+        except ValueError:
+            host = "127.0.0.1"
+            start_port = addrs[0]
+
+        start_port = port2int(start_port)
+        new_addrs=[]
+        for port in range(start_port, start_port+servers):
+            new_addrs.append("%s:%s"%(host,port))
+        return new_addrs
+
+
+def port2int(port):
+    try:
+        port = int(port)
+    except ValueError:
+        sys.exit("error config: wrong port format")        
+    return port    
+        
+                                            

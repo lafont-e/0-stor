@@ -1,6 +1,4 @@
 """
-    
-    
     Orchestrator controls benchmarking process and generates report.
 """
 
@@ -43,8 +41,6 @@ def main(argv):
     print('********************')
 
     report = Report(report_directory)
-    
-    # define an object of class Config
     config = Config(input_config)
 
     # loop over all benchmark sonfigs
@@ -68,19 +64,27 @@ def main(argv):
                 for val_prime in benchmark.prime.range:    
                     # alter the template config if prime parameter is given
                     if not benchmark.prime.empty():
-                        config.alter_template(benchmark.prime.id, val_prime)                  
+                        config.alter_template(benchmark.prime.id, val_prime)  
 
-                    # save new config
+                    # update config file 
+                    config.get_deployment_config()
                     config.save(output_config)
 
-                    # run benchmarking program
+                    # deploy zstor
+                    config.deploy_zstor() 
+                    
+                    # perform benchmarking                
                     run(["zstorbench", "-C", output_config, "--out-benchmark", result_benchmark_file])
-
+                    
+                    # stop zstor
+                    #import ipdb; ipdb.set_trace()
+                    config.stop_zstor()                    
+                    #import ipdb; ipdb.set_trace()
+                    # aggregate results
                     report.aggregate(result_benchmark_file)
 
+                    # add timeplots
                     report.add_timeplot()
-
-                    print("report.aggregator.throughput", report.aggregator.throughput)
             
             # add results of the benchmarking to the report
             report.add_aggregation()
