@@ -1,49 +1,53 @@
 """
-    Orchestrator controls benchmarking process and generates report.
+    Orchestrator controls the running of benchmarking process,
+    aggregating results and producing report.
 """
 
-import pdb #pdb.set_trace()
 import sys
 from argparse import ArgumentParser
+from argparse import SUPPRESS
 from yaml import dump
 from subprocess import run
 from lib import Config
 from lib import Report
-from lib import Aggregator
+import time
 
-def main(argv):
-    # default path to template yaml file
-    input_config = "orchConfig.yaml"
+def main(argv):    
+    parser = ArgumentParser(epilog="""
+        Orchestrator controls the running of benchmarking process,
+        aggregating results and producing report.
+    """, add_help=False)
+    parser.add_argument('-h', '--help', action='help',
+                    help='help for orchestrator')    
+    parser.add_argument('-C','--conf', 
+                        metavar='string',
+                        default='orchConfig.yaml',
+                        help='path to the config file (default orchConfig.yaml)')
+    parser.add_argument('--out', 
+                        metavar='string',
+                        default='report',
+                        help='directory where the benchmark report will be written (default ./report)')
 
-    # default path where config for scenarios is written
+    args = parser.parse_args()
+    input_config = args.conf
+    report_directory = args.out
+   
+    # path where config for scenarios is written
     output_config = "scenariosConf.yaml"
-
-    # default path to the benchmark results
-    result_benchmark_file = "benchmarkResult.yaml"
-    
-    report_directory = "report"
-    # TODO - handle flags with argparse
-    #try:
-    #    opts, args = getopt(argv,"hi:o:",["ifile=","ofile="])
-    #    # check if output directories are given
-    #    for opt, arg in opts:
-    #        if opt == '-i':
-    #            # set new file for input
-    #            input_config = arg
-    #        if opt == '-o':
-    #            # set new file for output
-    #            output_config = arg      
-    #except:
-    #    pass           
+    # path to the benchmark results
+    result_benchmark_file = "benchmarkResult.yaml"          
 
     print('********************')
     print('****Benchmarking****')
     print('********************')
 
-    report = Report(report_directory)
+    # extract config information
     config = Config(input_config)
 
-    # loop over all benchmark sonfigs
+    # initialise report opject
+    report = Report(report_directory)
+
+    # loop over all given benchmarks
     try:
         while True:
             # switch to the next benchmark config
@@ -66,31 +70,34 @@ def main(argv):
                     if not benchmark.prime.empty():
                         config.alter_template(benchmark.prime.id, val_prime)  
 
-                    # update config file 
-                    config.get_deployment_config()
+                    # update deployment config 
+                    config.update_deployment_config()
+
+                    # update config file
                     config.save(output_config)
 
                     # deploy zstor
-                    config.deploy_zstor() 
+                    config.deploy_zstor()
+
+                    # wait for servers to start
+                    config.wait_local_servers_to_start()                                  
                     
-                    # perform benchmarking                
+                    # perform benchmarking 
                     run(["zstorbench", "-C", output_config, "--out-benchmark", result_benchmark_file])
                     
                     # stop zstor
-                    #import ipdb; ipdb.set_trace()
-                    config.stop_zstor()                    
-                    #import ipdb; ipdb.set_trace()
+                    config.stop_zstor()  
+
                     # aggregate results
                     report.aggregate(result_benchmark_file)
 
-                    # add timeplots
+                    # add timeplots to the report
                     report.add_timeplot()
             
             # add results of the benchmarking to the report
             report.add_aggregation()
     except StopIteration:           # Note 4
         print("Benchmarking is done")
-  
 
 if __name__ == '__main__':
     main(sys.argv[1:])    
