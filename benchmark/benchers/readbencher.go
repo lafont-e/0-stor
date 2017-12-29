@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/paulbellamy/ratecounter"
-	"github.com/zero-os/0-Disk/log"
 	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
