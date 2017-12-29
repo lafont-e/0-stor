@@ -1,23 +1,13 @@
 benchmarks:
--
+- prime_parameter:
+    id: distribution_data
+    range: 2,3,4,5
 - prime_parameter:
     id: block_size
     range: 128, 256, 512, 1024, 2048
-#  second_parameter:
-#    id: encrypt
-#    range: true, false
-#- prime_parameter:
-#    id: block_size
-#    range: 128, 256, 512, 1024, 2048
-#  second_parameter:
-#    id: key_size
-#    range: 48, 24 , 100   
-#- prime_parameter:
-#    id: replication_max_size
-#    range: 128, 4096   
-#   second_parameter:
-#    id: key_size
-#    range: 48, 24 , 100 , 200      
+  second_parameter:
+    id: encrypt
+    range: true, false
 template:
   zstor_config:
     data_shards:
@@ -37,7 +27,7 @@ template:
     clients: 1
     method: write
     result_output: per_second
-    duration: 2
+    duration: 10
     operations: 0
     key_size: 48
     ValueSize: 128

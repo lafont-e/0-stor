@@ -1,23 +1,26 @@
 """
-Package report contains tools for collecting results of the benchmarking and generating final report. 
+    Package report contains tools for collecting results of the benchmarking 
+    and generating final report. 
 
-Output files show benchmarking results by means of tables and figures allowing for visual representation.
-Report for each benchmark is added to the output files as soon as the benchmark is finished.
+    Output files show benchmarking results by means of tables and figures 
+    allowing for visual representation. Report for each benchmark is added 
+    to the output files as soon as the benchmark is finished.
 
-Two types of output files are avalible: main report file and scope of timeplots collected throughout the benchamaking. 
-Main report file consists of performance measures and allows for performance comparision among various scenarios.
-Main performance characteristic, reflected in the report is throughtput, indicating average data rate observed in a benchmark.
-Additional report file soncists the scope of timeplots collected during the benchmarking.
-Timeplots show dinamic of number of operations per time unit, observes during the benchmark.
+    Two types of output files are avaliable: main report file and a timeplot
+    collection. Main report file consists of performance measures and allows 
+    for performance comparision among various scenarios.
 
+    The performance metric, reflected in the report is throughput, 
+    defined as an average data rate observed throughout the benchmark.
+
+    Timeplot collection report soncists the scope of timeplots
+    collected during the benchmarking. Timeplots show number of 
+    operations per time unit, observes during the benchmark.
 """
-
-import pdb #pdb.set_trace()
 import os
 import matplotlib.pyplot as plt
 import yaml
 import sys
-
 
 TimeUnits = {'per_second': 1, 
              'per_minute': 60, 
@@ -47,7 +50,7 @@ class Aggregator:
 class Report:
     """
     Class Report is used to collect results of benchmarking
-    and to create final report.
+        and to create final report.
     """
     def __init__(self, directory='report', report='report.md', timeplots='timeplots.md'):
         self.directory = directory # set output directory for report files
@@ -79,7 +82,10 @@ class Report:
             try:
                 self.scenarios = yaml.load(stream)['scenarios']
             except yaml.YAMLError as exc:
-                sys.exit(exc)        
+                sys.exit(exc)
+        err = self.scenarios['scenario'].pop('error', None)
+        if err:
+            sys.exit("last benchmark exited with error: %s"%err )
         self.filter_scenario_config()
         
     def filter_scenario_config(self):
@@ -149,7 +155,6 @@ class Report:
             outfile.write('\n```')
 
         # check if more then one output was collected   
-    
         if sum(map(len, self.aggregator.throughput)) > 1:
             # create a bar plot
             self.__bar_plot__( fig_name)
@@ -175,10 +180,11 @@ class Report:
 
         n_plots = len(self.aggregator.throughput[0])
 
+        """ figure settings """
+
         # number of samples for each data set
         n_samples = len(rng)
 
-        ### figure view ###
         # bar width
         width = rng[-1]/(n_samples*n_plots+1)
 
@@ -265,7 +271,9 @@ class Report:
 
 
     def add_timeplot(self):
-        # plot timeplots and save to files
+        """
+        Add timeplots to the report
+        """
         files = self.__plot_per_interval__()
 
         if len(files)>0:
@@ -278,8 +286,12 @@ class Report:
                     outfile.write("\n![Fig](../{0})".format(file))
 
     def __plot_per_interval__(self): 
+        """
+        Create timeplots
+        """
         # file_names returns list of the output files
         file_names = []
+
         # plot_per_interval creates plot of number of operations vs time
         for sc_name in self.scenarios:
             # loop over results for all scenarios
@@ -294,7 +306,7 @@ class Report:
             # time_unit_literal represents the time unit for aggregation of the results
             time_unit_literal = scenario['scenario']['bench_conf']['result_output']
             timeUnit = TimeUnits[time_unit_literal]
-            print("scenario['results']", scenario['results'])            
+           
             for idx, result in enumerate(scenario['results']):
                 # duration of the benchmarking
                 try:
@@ -304,7 +316,7 @@ class Report:
 
                 # per_interval represents number of opperations per time unit
                 per_interval = result.pop('perinterval',[])
-                print("per_interval =", per_interval)
+
                 # plot number of operations vs time only if per_interval is not empty
                 if len(per_interval)>0:
                     # create time samples for every time unit
