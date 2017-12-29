@@ -130,12 +130,10 @@ class SetupZstor:
         self.etcd_nodes = []
 
     def cleanup(self):
-        for dir in self.cleanup_dirs:
-            shutil.rmtree(dir)
+        while self.cleanup_dirs:
+            shutil.rmtree(self.cleanup_dirs.pop())
 
 # returns true if provided profile flag is valid
-
-
 def is_profile_flag(flag):
     return flag in ('cpu', 'mem', 'block', 'trace')
 
