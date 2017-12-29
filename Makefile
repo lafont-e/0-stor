@@ -48,6 +48,7 @@ endif
 install: all
 	cp $(OUTPUT)/zstor $(GOPATH)/bin/zstor
 	cp $(OUTPUT)/zstordb $(GOPATH)/bin/zstordb
+	cp $(OUTPUT)/zstorbench $(GOPATH)/bin/zstorbench
 
 test: testserver testclient testcmd testbench
 

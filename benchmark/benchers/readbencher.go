@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/paulbellamy/ratecounter"
+	"github.com/zero-os/0-Disk/log"
 	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
@@ -25,6 +26,7 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 	// validate scenario config
 	err := scenario.Validate()
 	if err != nil {
+		log.Errorf("Error validating scenario: %v", err)
 		return nil, fmt.Errorf("Scenario %s failed: %v", scenarioID, err)
 	}
 
@@ -39,12 +41,12 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 	for i := 0; i < scenario.BenchConf.Operations; i++ {
 		rb.keys = append(rb.keys, generateData(scenario.BenchConf.KeySize))
 	}
-	rb.value = generateData(scenario.BenchConf.ValueSize)
 
 	// initializing client
 	config.SetupPolicy(&scenario.Policy)
 	rb.client, err = client.New(scenario.Policy)
 	if err != nil {
+		log.Errorf("Error creating client: %v", err)
 		return nil, fmt.Errorf("Failed creating client: %v", err)
 	}
 
@@ -63,6 +65,7 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 // RunBenchmark runs the read benchmarker
 func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 	if rb.client == nil {
+		log.Error("zstor client is nil when trying to run a read bencher")
 		return nil, fmt.Errorf("zstor client is nil")
 	}
 
@@ -88,8 +91,6 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 		maxIteration = len(rb.keys)
 	)
 
-	defer rb.cleanup()
-
 	start = time.Now()
 	for i := 0; ; i++ {
 		// loop over the available keys
@@ -105,6 +106,7 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 		default:
 			_, _, err := rb.client.Read(key)
 			if err != nil {
+				log.Errorf("Error write request to client: %v", err)
 				return nil, err
 			}
 			rc.Incr(1)
@@ -117,8 +119,10 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 	}
 	result.Duration = Duration{time.Since(start)}
 	result.Count = counter
-
 	result.PerInterval = append(result.PerInterval, rc.Rate())
+
+	rb.cleanup()
+
 	return result, nil
 }
 

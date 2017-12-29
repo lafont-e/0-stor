@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/paulbellamy/ratecounter"
-
 	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
@@ -25,6 +25,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 
 	err := scenario.Validate()
 	if err != nil {
+		log.Errorf("Error validating scenario: %v", err)
 		return nil, fmt.Errorf("Scenario %s failed: %v", scenarioID, err)
 	}
 	wb.scenarioID = scenarioID
@@ -44,6 +45,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 	config.SetupPolicy(&scenario.Policy)
 	wb.client, err = client.New(scenario.Policy)
 	if err != nil {
+		log.Errorf("Error creating client: %v", err)
 		return nil, fmt.Errorf("Failed creating client: %v", err)
 	}
 
@@ -53,6 +55,7 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 //RunBenchmark implements Method.RunBenchmark
 func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	if wb.client == nil {
+		log.Error("zstor client is nil when trying to run a write bencher")
 		return nil, fmt.Errorf("zstor client is nil")
 	}
 
@@ -78,8 +81,6 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 		maxIteration = len(wb.keys)
 	)
 
-	defer wb.cleanup()
-
 	start = time.Now()
 	for i := 0; i < maxIteration; i++ {
 		// loop over the available keys
@@ -94,6 +95,7 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 		default:
 			_, err := wb.client.Write(key, wb.value, nil)
 			if err != nil {
+				log.Errorf("Error write request to client: %v", err)
 				return nil, err
 			}
 			rc.Incr(1)
@@ -102,8 +104,10 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	}
 	result.Duration = Duration{time.Since(start)}
 	result.Count = counter
-
 	result.PerInterval = append(result.PerInterval, rc.Rate())
+
+	wb.cleanup()
+
 	return result, nil
 }
 
