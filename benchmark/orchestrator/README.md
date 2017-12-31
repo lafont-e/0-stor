@@ -2,7 +2,8 @@
 
 Benchmark orchestrator provides tools to analyse performance of `zstor`.
 
-# Getting started
+## Getting started
+
 To start the benchmarking, zstor 
 
 Run the benchmark orchestrator using optional parameters:
@@ -19,18 +20,21 @@ optional arguments:
                         written (default ./report)
 ```
 
-## Orchestrator config file
+### Orchestrator config file
 Config file for the `orchestrator` consists of two parts:
 
   * `template` represents the template of the config file for the benchmark client. it consists of the two parts itself:
 
   * `benchmarks` contains set of the benchmark parameter.
-Multiple benchmarks can be added to the final report. 
+  Multiple benchmarks can be added to the final report. 
 
-The config for each benchmark consists of `prime_parameter` and optional `second_parameter`. 
+The config for each benchmark is marked by the `prime_parameter` and inside there can be an optional `second_parameter` defined. 
 If no benchmark parameters are given, `template` will be directly used to run benchmarking and output the system throughput.
 If only `prime_parameter` is given, `orchestrator` creates a plot of the system throughput versus values in `range` of the `prime parameter`.
 If both `prime_parameter` and `second_parameter` are given, a few plots will be combined in the output figure, one for each value in `range` of `second_parameter`.
+
+Also inside of the `prime_parameter` field the `id` specifies what zstor config field is being benchmarked.  
+The `range` field specifies the different values for that zstor config field being used in the benchmarks.
 
 Here is an example of the config file:
 ``` yaml
@@ -72,5 +76,3 @@ Port of the local host given in `data shards` is used by the orchestrator as a s
 Number of servers deployed is `distribution_data`+`distribution_parity`.
 
 Port of the local host give n in `meta shards` is used by the orchestrator as a starting port for etcd servers deployment. Each next server uses the port +1.
-
- 
