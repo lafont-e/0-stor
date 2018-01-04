@@ -68,7 +68,8 @@ class Report:
             outfile.write("# Timeplot collection report\n")  
             outfile.write("[Main report in here]({0}) \n\n".format(report)) 
 
-        self.reports_added = 0 # keep track of added reports
+        self.reports_added = 0   # keep track of added reports
+        self.timeplots_added = 0 # keep track of number of timeplots added 
         self.scenarios = {}
 
     def init_aggregator(self, benchmark):
@@ -283,7 +284,7 @@ class Report:
                 outfile.write('\n```')
                 outfile.write("\n _____________ \n".format(str(self.reports_added)))
                 for file in files:
-                    outfile.write("\n![Fig](../{0})".format(file))
+                    outfile.write("\n![Fig](../{0}) \n".format(file))
 
     def __plot_per_interval__(self): 
         """
@@ -315,22 +316,24 @@ class Report:
                     exit('duration format is not valid')        
 
                 # per_interval represents number of opperations per time unit
-                per_interval = result.pop('perinterval',[])
-
+                try:
+                    per_interval = result['perinterval']
+                except:
+                    per_interval = []
                 # plot number of operations vs time only if per_interval is not empty
                 if len(per_interval)>0:
                     # create time samples for every time unit
                     time_line = [i for i in range(timeUnit, int(duration+timeUnit))]
 
                     plt.figure()
-                    plt.plot(time_line, per_interval[:len(time_line)],'bo--', label=sc_name)
+                    plt.plot(time_line, per_interval[len(per_interval)-len(time_line):],'bo--', label=self.timeplots_added)
                     plt.xlabel('time, '+time_unit_literal[4:])
                     plt.ylabel('number of operations per '+time_unit_literal[4:])
-                    file = '{0}/plot_per_interval_{1}_{2}.png'.format(self.directory, sc_name, str(idx))
+                    file = '{0}/plot_per_interval_{1}_{2}.png'.format(self.directory, sc_name, str(self.timeplots_added))
                     plt.savefig(file)
                     plt.close()
                     file_names.append(file)
-
+                    self.timeplots_added+=1
         return file_names
 
 
