@@ -1,12 +1,10 @@
-# Benchmark orchestrator
+# zstor benchmark
 
-Benchmark orchestrator provides tools to analyse performance of `zstor`.
+`zstor benchmark` provides tools to analyse performance of `zstor`.
 
 ## Getting started
 
-To start the benchmarking, zstor 
-
-Run the benchmark orchestrator using optional parameters:
+To start the benchmarking provide a [config file](#orchestrator-config-file) for `benchmark orchestrator` (`0-stor/benchmark/orchestrator/`) and run using optional parameters:
 ``` bash
 python3 orchestrator --conf orchCong.yaml --out report
 ```
@@ -20,10 +18,18 @@ optional arguments:
                         written (default ./report)
 ```
 
+
+## Components
+
+## Benchmark orchestrator
+  
+To collect data for an informative benchmark report we need to repeatedly run `zstor` servers and `benchmark client` under multiple benchmarking scenarios and collect performance data. The benchmark scenarios, server and client config are provided in the orchestrator config.
+  
+
 ### Orchestrator config file
 Config file for the `orchestrator` consists of two parts:
 
-  * `template` represents the template of the config file for the benchmark client. it consists of the two parts itself:
+  * `template` represents the template of the config file for the benchmark client.
 
   * `benchmarks` contains set of the benchmark parameter.
   Multiple benchmarks can be added to the final report. 
@@ -75,4 +81,24 @@ template:
 Port of the local host given in `data shards` is used by the orchestrator as a starting port for zstor servers deployment. Each next server uses the port +1.
 Number of servers deployed is `distribution_data`+`distribution_parity`.
 
-Port of the local host give n in `meta shards` is used by the orchestrator as a starting port for etcd servers deployment. Each next server uses the port +1.
+Port of the local host given in `meta shards` is used by the orchestrator as a starting port for etcd servers deployment. Each next server uses the port +1.
+
+ 
+### Benchmark client
+
+`Benchmark client` is written in `go` and contains ligic to collect benchmark information while creating load at the `zstor` server. Client config includes both `zstor` config and parameters of the benchmark. `Benchmark client` is called from `benchmark orchestrator`.
+
+To use `zstore benchmark` independently run
+``` bash
+zstorbench -C config.yaml --out-benchmark benchmark.yaml
+```
+`zstorbench` has the following options:
+``` bash
+  -C, --conf string            path to a config file (default "config.yaml")
+  -h, --help                   help for performance
+      --out-benchmark string   path and filename where benchmarking results are written (default "benchmark.yaml")
+      --out-profile string     path where profiling files are written (default "profile")
+      --profile-mode string    enable profiling mode, one of [cpu, mem, trace, block]
+```
+
+Example of the config file is [here](https://github.com/zero-os/0-stor/blob/benchmark_orchestrator/benchmark/config/testconfigs/validConf.yaml).
