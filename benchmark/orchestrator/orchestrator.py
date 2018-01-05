@@ -14,7 +14,7 @@ import time
 
 def main(argv):    
     parser = ArgumentParser(epilog="""
-        Orchestrator controls the running of benchmarking process,
+        Orchestrator controls the benchmarking process,
         aggregating results and producing report.
     """, add_help=False)
     parser.add_argument('-h', '--help', action='help',
@@ -96,6 +96,7 @@ def main(argv):
             
             # add results of the benchmarking to the report
             report.add_aggregation()
+            config.restore_template()
     except StopIteration:           # Note 4
         print("Benchmarking is done")
 

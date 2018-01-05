@@ -43,7 +43,8 @@ class Config:
                 sys.exit(exc)
 
         # fetch template config for benchmarking
-        self.template = config.pop('template', None)
+        self._template0 = config.pop('template', None)
+        self.restore_template()        
 
         if not self.template:
             sys.exit('no template config given')
@@ -81,6 +82,9 @@ class Config:
                     except:
                         sys.exit("orchestrator config: cannot convert val = {} to type {}".format(val,parameter_type))
                     
+    def restore_template(self):
+        self.template = deepcopy(self._template0)
+        
     def save(self, file_name):
         """
         Save current config to file
