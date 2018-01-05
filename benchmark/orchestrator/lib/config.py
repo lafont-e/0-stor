@@ -79,7 +79,7 @@ class Config:
                     try:
                         self.template[item][key] = parameter_type(val)
                     except:
-                        sys.exit("cannot convert val = {} to type {}".format(val,parameter_type))
+                        sys.exit("orchestrator config: cannot convert val = {} to type {}".format(val,parameter_type))
                     
     def save(self, file_name):
         """
@@ -160,7 +160,10 @@ class Config:
             servers = 0
             for addr in addrs:
                 port = ':%s'%split(':',addr)[-1]
-                responce = check_output(['lsof', '-i', port])
+                try:
+                    responce = check_output(['lsof', '-i', port])
+                except:
+                    responce=0
                 if responce:
                     servers+=1
                 if time.time() > timeout:

@@ -40,7 +40,7 @@ class Aggregator:
     """
     Aggregator aggregates average throughput over a set of benchmarks
     """
-    def __init__(self, benchmark):
+    def __init__(self, benchmark=None):
         self.benchmark = benchmark
         self.throughput= []
 
@@ -72,7 +72,7 @@ class Report:
         self.timeplots_added = 0 # keep track of number of timeplots added 
         self.scenarios = {}
 
-    def init_aggregator(self, benchmark):
+    def init_aggregator(self, benchmark=None):
         self.aggregator = Aggregator(benchmark)
 
     def get_scenario_config(self, input_file):
@@ -87,23 +87,32 @@ class Report:
         err = self.scenarios['scenario'].pop('error', None)
         if err:
             sys.exit("last benchmark exited with error: %s"%err )
-        self.filter_scenario_config()
+        self.filter(self.scenarios, FilterKeys)
         
-    def filter_scenario_config(self):
+    @staticmethod
+    def filter(d, filter_keys):
         """
-        Delete irrelevant keys of the scenario config 
-        """
-        for sc_name in self.scenarios:
-            for key in FilterKeys:
-                try:
-                    self.scenarios[sc_name]['scenario']['zstor_config'].pop(key, None)
-                except:
-                    pass 
+        Recurcively delete keys from dictionary.
+        @ filter_keys specifies list  of keys
+        """        
+        def filter(d, filter_keys):
+            for key in list(d.keys()):
+                v = d[key]
+                if isinstance(v, dict):
+                    filter(v, filter_keys)
+                else:
+                    if key in filter_keys:
+                        d.pop(key, None)
+        filter(d, filter_keys) 
+
 
     def aggregate(self, input_file):
         self.get_scenario_config(input_file)
-        th = self.__get_throughput__()
-        self.aggregator.throughput[-1].append(th[0])
+        th = self.__get_throughput__()       
+        if self.aggregator.throughput: 
+            self.aggregator.throughput[-1].append(th[0])
+        else:
+            self.aggregator.throughput.append(th[0])
     
     def __get_throughput__(self):
         throughput = []
@@ -142,14 +151,19 @@ class Report:
         return throughput
 
     def add_aggregation(self):
+        # count reports added to a report file
         self.reports_added += 1
 
-        # name of the figure
         fig_name = 'fig' +str(self.reports_added) + '.png'
 
-        # refer the figure in the report
+        # filter results form scenario config before dumping to the report
+        self.filter(self.scenarios, ['results'])
+        
         with open(self.main_file, 'a+') as outfile:
+            # refer the figure in the report
             outfile.write("\n # Report {0} \n".format(str(self.reports_added)))
+            
+            # add benchmark config
             outfile.write('**Benchmark config:** \n')
             outfile.write('```yaml \n')
             yaml.dump(self.scenarios, outfile,default_flow_style=False)
@@ -164,7 +178,7 @@ class Report:
             with open(self.main_file, 'a+') as outfile:
                 outfile.write("\n![Fig: throughput vs parameter]({0})".format(fig_name))            
 
-        # add the table of the data set
+        # add the table of the data sets
         self.__add_table__()
 
 
@@ -323,9 +337,11 @@ class Report:
                 # plot number of operations vs time only if per_interval is not empty
                 if len(per_interval)>0:
                     # create time samples for every time unit
-                    time_line = [i for i in range(timeUnit, int(duration+timeUnit))]
+                    max_time = min(int(duration+timeUnit), len(per_interval))
+                    time_line = [i for i in range(timeUnit, max_time)]
 
                     plt.figure()
+                    #import ipdb; ipdb.set_trace()
                     plt.plot(time_line, per_interval[len(per_interval)-len(time_line):],'bo--', label=self.timeplots_added)
                     plt.xlabel('time, '+time_unit_literal[4:])
                     plt.ylabel('number of operations per '+time_unit_literal[4:])
