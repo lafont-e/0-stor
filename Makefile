@@ -3,6 +3,7 @@ GOOS ?= linux
 GOARCH ?= amd64
 
 TIMEOUT ?= 10m
+RACE_TIMEOUT ?= 20m
 
 PACKAGE = github.com/zero-os/0-stor
 COMMIT_HASH = $(shell git rev-parse --short HEAD 2>/dev/null)
@@ -10,6 +11,7 @@ BUILD_DATE = $(shell date +%FT%T%z)
 
 SERVER_PACKAGES = $(shell go list ./server/...)
 CLIENT_PACKAGES = $(shell go list ./client/...)
+DAEMON_PACKAGES = $(shell go list ./daemon/...)
 CMD_PACKAGES = $(shell go list ./cmd/...)
 BENCH_PACKAGES = $(shell go list ./benchmark/...)
 
@@ -50,18 +52,21 @@ install: all
 	cp $(OUTPUT)/zstordb $(GOPATH)/bin/zstordb
 	cp $(OUTPUT)/zstorbench $(GOPATH)/bin/zstorbench
 
-test: testserver testclient testcmd testbench
+test: testserver testclient testdaemon testbench testcmd
 
 testcov:
 	utils/scripts/coverage_test.sh
 
-testrace: testserverrace testclientrace testbenchrace
+testrace: testserverrace testclientrace testdaemonrace testbenchrace
 
 testserver:
 	go test -v -timeout $(TIMEOUT) $(SERVER_PACKAGES)
 
 testclient:
 	go test -v -timeout $(TIMEOUT) $(CLIENT_PACKAGES)
+
+testdaemon:
+	go test -v -timeout $(TIMEOUT) $(DAEMON_PACKAGES)
 
 testcmd:
 	go test -v -timeout $(TIMEOUT) $(CMD_PACKAGES)
@@ -70,10 +75,13 @@ testbench:
 	go test -v -timeout $(TIMEOUT) $(BENCH_PACKAGES)
 
 testserverrace:
-	go test -v -race $(SERVER_PACKAGES)
+	go test -race -timeout $(RACE_TIMEOUT) $(SERVER_PACKAGES)
 
 testclientrace:
-	go test -v -race $(CLIENT_PACKAGES)
+	go test -race -timeout $(RACE_TIMEOUT) $(CLIENT_PACKAGES)
+
+testdaemonrace:
+	go test -v -race $(DAEMON_PACKAGES)
 
 testbenchrace:
 	go test -v -race $(BENCH_PACKAGES)
@@ -106,4 +114,4 @@ prune_deps:
 $(OUTPUT):
 	mkdir -p $(OUTPUT)
 
-.PHONY: $(OUTPUT) client server install test testcov testrace testserver testclient testcmd testbench testserverrace testclientrace testracebench testcodegen ensure_deps add_dep update_dep update_deps prune_deps
+.PHONY: $(OUTPUT) client server install test testcov testrace testserver testclient testdaemon testbench testcmd testserverrace testclientrace testdaemonrace testracebench testcodegen ensure_deps add_dep update_dep update_deps prune_deps

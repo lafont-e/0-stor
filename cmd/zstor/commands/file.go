@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package commands
 
 import (
@@ -9,7 +25,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/zero-os/0-stor/cmd"
 )
 
 // fileCmd represents the namespace for all file subcommands
@@ -37,7 +52,6 @@ var fileUploadCmd = &cobra.Command{
 
 		// collect option flags
 		key := fileUploadCfg.Key
-		refList := fileUploadCfg.References.Strings()
 
 		// parse optional pos arg and create input reader
 		if len(args) == 1 {
@@ -60,7 +74,7 @@ var fileUploadCmd = &cobra.Command{
 		}
 
 		// upload the content from the input reader as the given/set key
-		_, err = cl.WriteF([]byte(key), input, refList)
+		_, err = cl.Write([]byte(key), input)
 		if err != nil {
 			return fmt.Errorf("uploading data from %q as %q failed: %v", inputName, key, err)
 		}
@@ -70,8 +84,7 @@ var fileUploadCmd = &cobra.Command{
 }
 
 var fileUploadCfg struct {
-	Key        string
-	References cmd.Strings
+	Key string
 }
 
 // fileDownloadCmd represents the file-download command
@@ -99,12 +112,12 @@ var fileDownloadCmd = &cobra.Command{
 			output = os.Stdout
 		}
 
-		refList, err := cl.ReadF([]byte(key), output)
+		err = cl.Read([]byte(key), output)
 		if err != nil {
 			return fmt.Errorf("downloading file (key: %s) failed: %v", key, err)
 		}
 
-		log.Infof("file (key: %s) downloaded, referenceList=%v\n", key, refList)
+		log.Infof("file (key: %s) downloaded", key)
 		return nil
 	},
 }
@@ -143,13 +156,13 @@ var fileMetadataCmd = &cobra.Command{
 	Long:  "Print the metadata from a file which is stored securely onto (a) 0-Stor server(s).",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(_cmd *cobra.Command, args []string) error {
-		cl, err := getClient()
+		cl, err := getMetaClient()
 		if err != nil {
 			return err
 		}
 
 		key := args[0]
-		meta, err := cl.GetMeta([]byte(key))
+		meta, err := cl.GetMetadata([]byte(key))
 		if err != nil {
 			return fmt.Errorf("failed to get metadata for %q: %v", key, err)
 		}
@@ -192,7 +205,7 @@ var fileRepairCmd = &cobra.Command{
 
 		key := args[0]
 
-		err = cl.Repair([]byte(key))
+		_, err = cl.Repair([]byte(key))
 		if err != nil {
 			return fmt.Errorf("repair file %q failed: %v", key, err)
 		}
@@ -214,9 +227,6 @@ func init() {
 	fileUploadCmd.Flags().StringVarP(
 		&fileUploadCfg.Key, "key", "k", "",
 		"Key to use to store the file, required when uploading from STDIN, if empty use the name of the file as the key")
-	fileUploadCmd.Flags().VarP(
-		&fileUploadCfg.References, "ref", "r",
-		"references for this file, split by comma for multiple values")
 
 	fileDownloadCmd.Flags().StringVarP(
 		&fileDownloadCfg.Output, "output", "o", "",

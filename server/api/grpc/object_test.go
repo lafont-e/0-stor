@@ -1,7 +1,22 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package grpc
 
 import (
-	"bytes"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -10,19 +25,52 @@ import (
 	"path"
 	"testing"
 
-	"google.golang.org/grpc"
-
-	"golang.org/x/net/context"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/zero-os/0-stor/server"
+	"github.com/zero-os/0-stor/server/api/grpc/rpctypes"
 	pb "github.com/zero-os/0-stor/server/api/grpc/schema"
 	"github.com/zero-os/0-stor/server/db"
 	"github.com/zero-os/0-stor/server/db/badger"
 	"github.com/zero-os/0-stor/server/encoding"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
+
+func TestNewObjectAPI(t *testing.T) {
+	require.Panics(t, func() {
+		NewObjectAPI(nil, 0)
+	}, "no db given")
+}
+
+func requireGRPCError(t *testing.T, expectedErr, receivedErr error) {
+	require := require.New(t)
+	require.Error(receivedErr)
+	require.NotEqual(expectedErr, receivedErr)
+	receivedErr = rpctypes.Error(receivedErr)
+	require.Equal(expectedErr, receivedErr)
+}
+
+func TestCreateObjectErrors(t *testing.T) {
+	api, clean := getTestObjectAPI(require.New(t))
+	defer clean()
+
+	req := &pb.CreateObjectRequest{}
+
+	ctx := context.Background()
+	_, err := api.CreateObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilLabel, err)
+
+	ctx = contextWithLabel(ctx, label)
+	_, err = api.CreateObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilData, err)
+
+	req.Data = []byte("someData")
+	_, err = api.CreateObject(ctx, req)
+	require.NoError(t, err)
+}
 
 func TestCreateObject(t *testing.T) {
 	require := require.New(t)
@@ -40,33 +88,52 @@ func TestCreateObject(t *testing.T) {
 	require.NoError(err)
 
 	req := &pb.CreateObjectRequest{
-		Label: label,
-		Object: &pb.Object{
-			Key:           []byte("testkey"),
-			Value:         buf,
-			ReferenceList: []string{"user1", "user2"},
-		},
+		Data: buf,
 	}
 
-	_, err = api.Create(context.Background(), req)
+	resp, err := api.CreateObject(contextWithLabel(nil, label), req)
 	require.NoError(err)
+	require.NotNil(resp)
 
 	// get data and validate it's correct
-	objRawData, err := api.db.Get(db.DataKey([]byte(label), []byte("testkey")))
-	require.NoError(err)
+	key := db.DataKey([]byte(label), resp.Key)
+	objRawData, err := api.db.Get(key)
+	require.NoErrorf(err, "key: %s", key)
 	require.NotNil(objRawData)
 	obj, err := encoding.DecodeObject(objRawData)
 	require.NoError(err)
-	require.Equal(req.Object.Value, obj.Data)
+	require.Equal(req.Data, obj.Data)
+}
 
-	// get reference list, and validate it's correct
-	refListRawData, err := api.db.Get(db.ReferenceListKey([]byte(label), []byte("testkey")))
-	require.NoError(err)
-	require.NotNil(refListRawData)
-	refList, err := encoding.DecodeReferenceList(refListRawData)
-	require.NoError(err)
-	require.Len(refList, len(req.Object.ReferenceList))
-	require.Subset(req.Object.ReferenceList, refList)
+func TestGetObjectErrors(t *testing.T) {
+	api, clean := getTestObjectAPI(require.New(t))
+	defer clean()
+
+	req := &pb.GetObjectRequest{}
+
+	ctx := context.Background()
+	_, err := api.GetObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilLabel, err)
+
+	ctx = contextWithLabel(ctx, label)
+	_, err = api.GetObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilKey, err)
+
+	req.Key = []byte("myKey")
+	_, err = api.GetObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrKeyNotFound, err)
+
+	err = api.db.Set(db.DataKey([]byte(label), []byte("myKey")), []byte("someCorruptedData"))
+	require.NoError(t, err)
+	_, err = api.GetObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrObjectDataCorrupted, err)
+
+	data, err := encoding.EncodeObject(server.Object{Data: []byte("someData")})
+	require.NoError(t, err)
+	err = api.db.Set(db.DataKey([]byte(label), []byte("myKey")), data)
+	require.NoError(t, err)
+	_, err = api.GetObject(ctx, req)
+	require.NoError(t, err)
 }
 
 func TestGetObject(t *testing.T) {
@@ -81,67 +148,28 @@ func TestGetObject(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		key := []byte("testkey0")
 		req := &pb.GetObjectRequest{
-			Label: label,
-			Key:   key,
+			Key: key,
 		}
 
-		resp, err := api.Get(context.Background(), req)
+		resp, err := api.GetObject(contextWithLabel(nil, label), req)
 		require.NoError(err)
 
-		obj := resp.GetObject()
-
-		assert.Equal(key, obj.GetKey())
-		assert.Equal(bufList["testkey0"], obj.GetValue())
-		assert.Equal([]string{"user1", "user2"}, obj.GetReferenceList())
+		assert.Equal(bufList["testkey0"], resp.GetData())
 	})
 
 	t.Run("non existing", func(t *testing.T) {
 		req := &pb.GetObjectRequest{
-			Label: label,
-			Key:   []byte("notexistingkey"),
+			Key: []byte("notexistingkey"),
 		}
 
-		_, err := api.Get(context.Background(), req)
-		assert.Equal(db.ErrNotFound, err)
+		_, err := api.GetObject(contextWithLabel(nil, label), req)
+		require.Error(err)
+		err = rpctypes.Error(err)
+		assert.Equal(rpctypes.ErrKeyNotFound, err)
 	})
 }
 
-func TestExistsObject(t *testing.T) {
-	require := require.New(t)
-	assert := assert.New(t)
-
-	api, clean := getTestObjectAPI(require)
-	defer clean()
-
-	bufList := populateDB(t, label, api.db)
-
-	for i := 0; i < len(bufList); i++ {
-		key := fmt.Sprintf("testkey%d", i)
-		t.Run(key, func(t *testing.T) {
-			req := &pb.ExistsObjectRequest{
-				Label: label,
-				Key:   []byte(key),
-			}
-
-			resp, err := api.Exists(context.Background(), req)
-			require.NoError(err)
-			assert.True(resp.Exists, fmt.Sprintf("Key %s should exists", key))
-		})
-	}
-
-	t.Run("non exists", func(t *testing.T) {
-		req := &pb.ExistsObjectRequest{
-			Label: label,
-			Key:   []byte("nonexists"),
-		}
-
-		resp, err := api.Exists(context.Background(), req)
-		require.NoError(err)
-		assert.False(resp.Exists, fmt.Sprint("Key nonexists should not exists"))
-	})
-}
-
-func TestListObjects(t *testing.T) {
+func TestListObjectkeys(t *testing.T) {
 	require := require.New(t)
 
 	api, clean := getTestObjectAPI(require)
@@ -150,82 +178,76 @@ func TestListObjects(t *testing.T) {
 	bufList := populateDB(t, label, api.db)
 	require.NotEmpty(bufList)
 
-	// remove the reference list for half of them
-	ctx := context.Background()
-	var index int
-	refList := make(map[string]struct{}, len(bufList))
-	for key := range bufList {
-		index++
-		if index%2 == 0 {
-			refList[key] = struct{}{}
-			continue
-		}
+	req := pb.ListObjectKeysRequest{}
 
-		_, err := api.RemoveReferenceList(ctx, &pb.UpdateReferenceListRequest{
-			Label:         label,
-			Key:           []byte(key),
-			ReferenceList: []string{"user1", "user2"},
-		})
-		require.NoError(err)
+	keyMapping := make(map[string]struct{}, len(bufList))
+	for key := range bufList {
+		keyMapping[key] = struct{}{}
 	}
 
-	req := pb.ListObjectsRequest{Label: label}
 	stream := listServerStream{
 		ServerStream: nil,
-		label:        label,
-		mapping:      bufList,
-		refMapping:   refList,
+		keyMapping:   keyMapping,
 	}
-	require.NoError(api.List(&req, &stream))
+
+	err := api.ListObjectKeys(&req, &stream)
+	requireGRPCError(t, rpctypes.ErrNilLabel, err)
+
+	stream.label = label
+	err = api.ListObjectKeys(&req, &stream)
+	require.NoError(err)
 }
 
 type listServerStream struct {
 	grpc.ServerStream
 
 	label      string
-	mapping    map[string][]byte
-	refMapping map[string]struct{}
+	keyMapping map[string]struct{}
 }
 
-func (stream *listServerStream) Send(obj *pb.Object) error {
-	if obj == nil {
+func (stream *listServerStream) Send(resp *pb.ListObjectKeysResponse) error {
+	if resp == nil {
 		return errors.New("no object given")
 	}
 
-	key := obj.GetKey()
+	key := resp.GetKey()
 	if key == nil {
 		return errors.New("no key given")
 	}
-	value, ok := stream.mapping[string(key)]
+	_, ok := stream.keyMapping[string(key)]
 	if !ok {
 		return fmt.Errorf(
 			"key %q was not found in expected mapping",
 			key)
 	}
 
-	objValue := obj.GetValue()
-	if bytes.Compare(value, objValue) != 0 {
-		return fmt.Errorf("value %q was expected to be %v, but was %v",
-			key, value, objValue)
-	}
-
-	if _, ok := stream.refMapping[string(key)]; ok {
-		refList := obj.GetReferenceList()
-		if len(refList) != 2 || refList[0] != "user1" || refList[1] != "user2" {
-			return fmt.Errorf("key %q has an invalid reference list: %v", key, refList)
-		}
-	} else {
-		refList := obj.GetReferenceList()
-		if len(refList) != 0 {
-			return fmt.Errorf("key %q has an unexpected reference list: %v", key, refList)
-		}
-	}
-
 	return nil
 }
 
 func (stream *listServerStream) Context() context.Context {
-	return context.Background()
+	if stream.label == "" {
+		return context.Background()
+	}
+	return contextWithLabel(nil, stream.label)
+}
+
+func TestDeleteObjectErrors(t *testing.T) {
+	api, clean := getTestObjectAPI(require.New(t))
+	defer clean()
+
+	req := &pb.DeleteObjectRequest{}
+
+	ctx := context.Background()
+	_, err := api.DeleteObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilLabel, err)
+
+	ctx = contextWithLabel(ctx, label)
+	_, err = api.DeleteObject(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilKey, err)
+
+	req.Key = []byte("myKey")
+	_, err = api.DeleteObject(ctx, req)
+	require.NoError(t, err)
 }
 
 func TestDeleteObject(t *testing.T) {
@@ -235,176 +257,105 @@ func TestDeleteObject(t *testing.T) {
 	api, clean := getTestObjectAPI(require)
 	defer clean()
 
-	ctx := context.Background()
-	key := []byte("testkey1")
+	ctx := contextWithLabel(nil, label)
 
 	// create a key
-	_, err := api.Create(ctx, &pb.CreateObjectRequest{
-		Label: label,
-		Object: &pb.Object{
-			Key:           key,
-			Value:         []byte{1, 2, 3, 4},
-			ReferenceList: []string{"user1"},
-		},
+	resp, err := api.CreateObject(ctx, &pb.CreateObjectRequest{
+		Data: []byte{1, 2, 3, 4},
 	})
 	require.NoError(err)
+	require.NotNil(resp)
 
 	t.Run("valid", func(t *testing.T) {
 		req := &pb.DeleteObjectRequest{
-			Label: label,
-			Key:   key,
+			Key: resp.Key,
 		}
 
-		_, err := api.Delete(ctx, req)
+		_, err := api.DeleteObject(ctx, req)
 		require.NoError(err)
 
-		existsReply, err := api.Exists(ctx, &pb.ExistsObjectRequest{
-			Label: label,
-			Key:   key,
+		reply, err := api.GetObjectStatus(ctx, &pb.GetObjectStatusRequest{
+			Key: resp.Key,
 		})
 		require.NoError(err)
-		assert.False(existsReply.Exists)
+		assert.Equal(pb.ObjectStatusMissing, reply.GetStatus())
 	})
 
 	// deleting a non existing object doesn't return an error.
 	t.Run("non exists", func(t *testing.T) {
 		req := &pb.DeleteObjectRequest{
-			Label: label,
-			Key:   []byte("nonexists"),
+			Key: []byte("nonexists"),
 		}
 
-		_, err := api.Delete(context.Background(), req)
+		_, err := api.DeleteObject(ctx, req)
 		require.NoError(err)
 
-		existsReply, err := api.Exists(ctx, &pb.ExistsObjectRequest{
-			Label: label,
-			Key:   req.Key,
+		reply, err := api.GetObjectStatus(ctx, &pb.GetObjectStatusRequest{
+			Key: []byte("nonexists"),
 		})
 		require.NoError(err)
-		assert.False(existsReply.Exists)
+		assert.Equal(pb.ObjectStatusMissing, reply.GetStatus())
 	})
 }
 
-// we'll append one ref at a time, one 255 different goroutines at once,
-// as to ensure that conflicts are resolved correctly
-func TestAppendReferenceListAsync(t *testing.T) {
-	// first create our database and object
-	require := require.New(t)
-
-	api, clean := getTestObjectAPI(require)
+func TestGetObjectStatusErrors(t *testing.T) {
+	api, clean := getTestObjectAPI(require.New(t))
 	defer clean()
 
+	req := &pb.GetObjectStatusRequest{}
+
 	ctx := context.Background()
-	key := []byte("testkey1")
-	value := []byte{1, 2, 3, 4}
+	_, err := api.GetObjectStatus(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilLabel, err)
 
-	_, err := api.Create(ctx, &pb.CreateObjectRequest{
-		Label: label,
-		Object: &pb.Object{
-			Key:   key,
-			Value: value,
-		},
-	})
-	require.NoError(err)
+	ctx = contextWithLabel(ctx, label)
+	_, err = api.GetObjectStatus(ctx, req)
+	requireGRPCError(t, rpctypes.ErrNilKey, err)
 
-	// now append our reference list
-	group, ctx := errgroup.WithContext(ctx)
-	var expectedList []string
-	for i := 0; i < 256; i++ {
-		userID := fmt.Sprintf("user%d", i)
-		expectedList = append(expectedList, userID)
-		group.Go(func() error {
-			_, err := api.AppendReferenceList(ctx, &pb.UpdateReferenceListRequest{
-				Label:         label,
-				Key:           key,
-				ReferenceList: []string{userID},
-			})
-			return err
-		})
-	}
-	require.NoError(group.Wait())
-
-	// now ensure our ref list is idd correct, even though we don't know the order
-	rawRefList, err := api.db.Get(db.ReferenceListKey([]byte(label), key))
-	require.NoError(err)
-	require.NotNil(rawRefList)
-	refList, err := encoding.DecodeReferenceList(rawRefList)
-	require.NoError(err)
-	require.Len(refList, len(expectedList))
-	require.Subset(expectedList, refList)
+	req.Key = []byte("myKey")
+	resp, err := api.GetObjectStatus(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, pb.ObjectStatusMissing, resp.GetStatus())
 }
 
-// we'll append one ref at a time, one 255 different goroutines at once,
-// as to ensure that conflicts are resolved correctly
-func TestRemoveReferenceListAsync(t *testing.T) {
-	// first create our database and object
-	require := require.New(t)
-
-	api, clean := getTestObjectAPI(require)
+func TestGetObjectStatus(t *testing.T) {
+	api, clean := getTestObjectAPI(require.New(t))
 	defer clean()
 
-	ctx := context.Background()
-	key := []byte("testkey1")
-	value := []byte{1, 2, 3, 4}
+	req := &pb.GetObjectStatusRequest{Key: []byte("myKey")}
+	ctx := contextWithLabel(nil, label)
 
-	const refCount = 256
+	resp, err := api.GetObjectStatus(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, pb.ObjectStatusMissing, resp.GetStatus())
 
-	var startRefList []string
-	for i := 0; i < refCount; i++ {
-		startRefList = append(startRefList, fmt.Sprintf("user%d", i))
-	}
+	err = api.db.Set(db.DataKey([]byte(label), req.Key), []byte("someCorruptedData"))
+	require.NoError(t, err)
+	resp, err = api.GetObjectStatus(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, pb.ObjectStatusCorrupted, resp.GetStatus())
 
-	_, err := api.Create(ctx, &pb.CreateObjectRequest{
-		Label: label,
-		Object: &pb.Object{
-			Key:           key,
-			Value:         value,
-			ReferenceList: startRefList,
-		},
-	})
-	require.NoError(err)
-
-	// ensure we have our ref list
-	rawRefList, err := api.db.Get(db.ReferenceListKey([]byte(label), key))
-	require.NoError(err)
-	require.NotNil(rawRefList)
-	refList, err := encoding.DecodeReferenceList(rawRefList)
-	require.NoError(err)
-	require.Len(refList, len(startRefList))
-	require.Subset(startRefList, refList)
-
-	// now remove from our reference list, one by one
-	group, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < refCount; i++ {
-		userID := fmt.Sprintf("user%d", i)
-		group.Go(func() error {
-			_, err := api.RemoveReferenceList(ctx, &pb.UpdateReferenceListRequest{
-				Label:         label,
-				Key:           key,
-				ReferenceList: []string{userID},
-			})
-			return err
-		})
-	}
-	require.NoError(group.Wait())
-
-	// now ensure our ref list is now gone
-	_, err = api.db.Get(db.ReferenceListKey([]byte(label), key))
-	require.Equal(db.ErrNotFound, err)
+	data, err := encoding.EncodeObject(server.Object{Data: []byte("someData")})
+	require.NoError(t, err)
+	err = api.db.Set(db.DataKey([]byte(label), []byte("myKey")), data)
+	require.NoError(t, err)
+	resp, err = api.GetObjectStatus(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, pb.ObjectStatusOK, resp.GetStatus())
 }
 
 func TestConvertStatus(t *testing.T) {
 	require := require.New(t)
 
 	// valid responses
-	require.Equal(pb.CheckStatusOK, convertStatus(server.CheckStatusOK))
-	require.Equal(pb.CheckStatusMissing, convertStatus(server.CheckStatusMissing))
-	require.Equal(pb.CheckStatusCorrupted, convertStatus(server.CheckStatusCorrupted))
+	require.Equal(pb.ObjectStatusOK, convertStatus(server.ObjectStatusOK))
+	require.Equal(pb.ObjectStatusMissing, convertStatus(server.ObjectStatusMissing))
+	require.Equal(pb.ObjectStatusCorrupted, convertStatus(server.ObjectStatusCorrupted))
 
 	// all other responses should panic
 	for i := 3; i < 256; i++ {
 		require.Panics(func() {
-			convertStatus(server.CheckStatus(i))
+			convertStatus(server.ObjectStatus(i))
 		})
 	}
 }
@@ -424,4 +375,12 @@ func getTestObjectAPI(require *require.Assertions) (*ObjectAPI, func()) {
 	}
 
 	return NewObjectAPI(db, 0), clean
+}
+
+func contextWithLabel(ctx context.Context, label string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	md := metadata.Pairs(rpctypes.MetaLabelKey, label)
+	return metadata.NewIncomingContext(ctx, md)
 }

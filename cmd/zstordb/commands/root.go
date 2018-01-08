@@ -1,20 +1,39 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package commands
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
-	badgerkv "github.com/dgraph-io/badger"
-	"github.com/spf13/cobra"
 	"github.com/zero-os/0-stor/cmd"
 	"github.com/zero-os/0-stor/server/api"
 	"github.com/zero-os/0-stor/server/api/grpc"
 	"github.com/zero-os/0-stor/server/db/badger"
 	"github.com/zero-os/0-stor/server/jwt"
+
+	log "github.com/Sirupsen/logrus"
+	badgerdb "github.com/dgraph-io/badger"
+	"github.com/pkg/profile"
+	"github.com/spf13/cobra"
 )
 
 // Execute adds all child commands to the root command sets flags appropriately.
@@ -37,7 +56,7 @@ var rootCmd = &cobra.Command{
 			log.Debug("Debug logging enabled")
 		}
 		if rootCfg.AuthDisabled {
-			log.Warning("!! Authentification disabled, don't use this mode for production!!!")
+			log.Warning("!! Authentication disabled, don't use this mode for production!!!")
 		}
 	},
 }
@@ -45,10 +64,12 @@ var rootCmd = &cobra.Command{
 func rootFunc(*cobra.Command, []string) error {
 	cmd.LogVersion()
 
-	dbOpts := badgerkv.DefaultOptions
+	dbOpts := badgerdb.DefaultOptions
 	dbOpts.SyncWrites = !rootCfg.AsyncWrite
+	dbOpts.Dir = rootCfg.DB.Dirs.Meta
+	dbOpts.ValueDir = rootCfg.DB.Dirs.Data
 
-	db, err := badger.NewWithOpts(rootCfg.DB.Dirs.Data, rootCfg.DB.Dirs.Meta, dbOpts)
+	db, err := badger.NewWithOpts(dbOpts)
 	if err != nil {
 		log.Errorf("error while opening database files: %v", err)
 		return err
@@ -64,10 +85,6 @@ func rootFunc(*cobra.Command, []string) error {
 		log.Errorf("error while creating database layer: %v", err)
 		return err
 	}
-	defer func() {
-		log.Println("Gracefully closing zstordb")
-		storServer.Close()
-	}()
 
 	if rootCfg.ProfileAddress != "" {
 		go func() {
@@ -78,24 +95,68 @@ func rootFunc(*cobra.Command, []string) error {
 		}()
 	}
 
+	if rootCfg.ProfileMode.String() != "" {
+		stat, err := os.Stat(rootCfg.ProfileOutput)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.MkdirAll(rootCfg.ProfileOutput, 0660); err != nil {
+				return fmt.Errorf("fail to create profile output directory: %v", err)
+			}
+		}
+		if !stat.IsDir() {
+			return fmt.Errorf("profile-output (%s) is not a directory", rootCfg.ProfileOutput)
+		}
+
+		switch rootCfg.ProfileMode {
+		case cmd.ProfileModeCPU:
+			defer profile.Start(
+				profile.NoShutdownHook,
+				profile.ProfilePath(rootCfg.ProfileOutput),
+				profile.CPUProfile).Stop()
+		case cmd.ProfileModeMem:
+			defer profile.Start(
+				profile.NoShutdownHook,
+				profile.ProfilePath(rootCfg.ProfileOutput),
+				profile.MemProfile).Stop()
+		case cmd.ProfileModeTrace:
+			defer profile.Start(
+				profile.NoShutdownHook,
+				profile.ProfilePath(rootCfg.ProfileOutput),
+				profile.TraceProfile).Stop()
+		case cmd.ProfileModeBlock:
+			defer profile.Start(
+				profile.NoShutdownHook,
+				profile.ProfilePath(rootCfg.ProfileOutput),
+				profile.BlockProfile).Stop()
+		}
+	}
+
+	// create a TCP listener for our server
+	listener, err := net.Listen("tcp", rootCfg.ListenAddress.String())
+	if err != nil {
+		return err
+	}
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT)
 
 	errChan := make(chan error, 1)
 
 	go func() {
-		err := storServer.Listen(rootCfg.ListenAddress.String())
+		err := storServer.Serve(listener)
 		errChan <- err
 	}()
 
 	log.Infof("Server interface: grpc")
-	log.Infof("Server listening on %s", storServer.Address())
+	log.Infof("Server listening on %s", listener.Addr().String())
 
 	select {
 	case err := <-errChan:
 		return err
 	case <-sigChan:
-		return nil
+		return storServer.Close()
 	}
 }
 
@@ -103,6 +164,8 @@ var rootCfg struct {
 	DebugLog       bool
 	ListenAddress  cmd.ListenAddress
 	ProfileAddress string
+	ProfileMode    cmd.ProfileMode
+	ProfileOutput  string
 	AuthDisabled   bool
 	MaxMsgSize     int
 	AsyncWrite     bool
@@ -122,13 +185,17 @@ func init() {
 	rootCmd.Flags().BoolVarP(
 		&rootCfg.DebugLog, "debug", "D", false, "Enable debug logging.")
 	rootCmd.Flags().VarP(
-		&rootCfg.ListenAddress, "listen", "L", "Bind the server to the given host and port. Format has to be host:port, with host optional (default :8080)")
+		&rootCfg.ListenAddress, "listen", "L", rootCfg.ListenAddress.Description())
 	rootCmd.Flags().StringVar(
 		&rootCfg.DB.Dirs.Data, "data-dir", ".db/data", "Directory path used to store the data.")
 	rootCmd.Flags().StringVar(
 		&rootCfg.DB.Dirs.Meta, "meta-dir", ".db/meta", "Directory path used to store the meta data.")
 	rootCmd.Flags().StringVar(
 		&rootCfg.ProfileAddress, "profile-addr", "", "Enables profiling of this server as an http service.")
+	rootCmd.Flags().VarP(
+		&rootCfg.ProfileMode, "profile-mode", "", rootCfg.ProfileMode.Description())
+	rootCmd.Flags().StringVar(
+		&rootCfg.ProfileOutput, "profile-output", ".", "Path of the directory where profiling files are written")
 	rootCmd.Flags().BoolVar(
 		&rootCfg.AuthDisabled, "no-auth", false, "Disable JWT authentication.")
 	rootCmd.Flags().IntVar(

@@ -1,18 +1,33 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package grpc
 
 import (
-	"errors"
 	"net"
 	"runtime"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	pb "github.com/zero-os/0-stor/server/api/grpc/schema"
 	"github.com/zero-os/0-stor/server/db"
 	"github.com/zero-os/0-stor/server/jwt"
-	"google.golang.org/grpc"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -21,31 +36,36 @@ var (
 	DefaultJobCount = runtime.NumCPU() * 2
 )
 
+const (
+	// DefaultMaxSizeMsg is the default size msg of a server
+	DefaultMaxSizeMsg = 32
+)
+
 // Server represents a 0-stor server GRPC Server API.
 type Server struct {
 	db         db.DB
-	address    string
-	addressCh  chan string
-	listener   net.Listener
 	grpcServer *grpc.Server
 }
 
 // New creates a GRPC (server) API, using a given Database,
 // and optional also custom server options (e.g. authentication middleware)
+// Default maxSizeMsg is equal to DefaultMaxSizeMsg.
+// Default jobs is equal to DefaultJobCount.
 func New(db db.DB, verifier jwt.TokenVerifier, maxSizeMsg, jobs int) (*Server, error) {
 	if db == nil {
 		panic("no database given")
 	}
 
+	if maxSizeMsg <= 0 {
+		maxSizeMsg = DefaultMaxSizeMsg
+	}
 	maxSizeMsg = maxSizeMsg * 1024 * 1024 //Mib to Bytes
+
 	if jobs <= 0 {
 		jobs = DefaultJobCount
 	}
 
-	s := &Server{
-		db:        db,
-		addressCh: make(chan string, 1),
-	}
+	s := &Server{db: db}
 
 	// create our grpc server
 	if verifier != nil {
@@ -78,51 +98,31 @@ func New(db db.DB, verifier jwt.TokenVerifier, maxSizeMsg, jobs int) (*Server, e
 	return s, nil
 }
 
-// Listen implements Server.Listen
-func (s *Server) Listen(addr string) error {
-	if s.listener != nil {
-		return errors.New("server is already listening")
-	}
-
-	var err error
-	s.listener, err = net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	s.addressCh <- s.listener.Addr().String()
-
-	err = s.grpcServer.Serve(s.listener)
+// Serve implements Server.Serve
+func (s *Server) Serve(lis net.Listener) error {
+	err := s.grpcServer.Serve(lis)
 	if err != nil && !isClosedConnError(err) {
 		return err
 	}
 	return nil
 }
 
+// Close implements Server.Close
+func (s *Server) Close() error {
+	log.Debugln("stop grpc server and all its active listeners")
+	s.grpcServer.GracefulStop()
+	log.Debugln("closing database")
+	return s.db.Close()
+}
+
 // isClosedConnError returns true if the error is from closing listener, cmux.
 // copied from golang.org/x/net/http2/http2.go
 func isClosedConnError(err error) bool {
+	if err == grpc.ErrServerStopped {
+		return true
+	}
 	// 'use of closed network connection' (Go <=1.8)
 	// 'use of closed file or network connection' (Go >1.8, internal/poll.ErrClosing)
 	// 'mux: listener closed' (cmux.ErrListenerClosed)
 	return strings.Contains(err.Error(), "closed")
-}
-
-// Close implements Server.Close
-func (s *Server) Close() {
-	if s.listener != nil {
-		log.Infoln("stop listener")
-		s.listener.Close()
-	}
-	log.Infoln("stop grpc server")
-	s.grpcServer.GracefulStop()
-	log.Infoln("closing database")
-	s.db.Close()
-}
-
-// Address implements Server.Address
-func (s *Server) Address() string {
-	if s.address == "" {
-		s.address = <-s.addressCh
-	}
-	return s.address
 }

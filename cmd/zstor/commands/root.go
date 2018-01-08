@@ -1,14 +1,37 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
+
+	"github.com/zero-os/0-stor/client"
+	"github.com/zero-os/0-stor/client/itsyouonline"
+	"github.com/zero-os/0-stor/client/metastor"
+	"github.com/zero-os/0-stor/client/metastor/db/etcd"
+	"github.com/zero-os/0-stor/client/metastor/encoding"
+	"github.com/zero-os/0-stor/client/processing"
+	"github.com/zero-os/0-stor/cmd"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/zero-os/0-stor/client"
-	"github.com/zero-os/0-stor/client/itsyouonline"
-	"github.com/zero-os/0-stor/cmd"
 )
 
 // Execute adds all child commands to the root command sets flags appropriately.
@@ -34,42 +57,79 @@ var rootCmd = &cobra.Command{
 var rootCfg struct {
 	DebugLog   bool
 	ConfigFile string
+	JobCount   int
 }
 
 func getClient() (*client.Client, error) {
-	// create policy
-	policy, err := readPolicy()
+	cfg, err := client.ReadConfig(rootCfg.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
-
 	// create client
-	cl, err := client.New(policy)
+	cl, err := client.NewClientFromConfigWithoutCaching(*cfg, rootCfg.JobCount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %v", err)
+		return nil, fmt.Errorf("failed to create 0-stor client: %v", err)
 	}
 
 	return cl, nil
 }
 
-func getNamespaceManager() (itsyouonline.IYOClient, error) {
-	policy, err := readPolicy()
+func getMetaClient() (*metastor.Client, error) {
+	clientCfg, err := client.ReadConfig(rootCfg.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	cfg := clientCfg.MetaStor
+
+	if len(cfg.Database.Endpoints) == 0 {
+		return nil, errors.New("no metadata storage ETCD endpoints given")
+	}
+
+	var config metastor.Config
+
+	// create metastor database first,
+	// so that then we can create the Metastor client itself
+	// TODO: support other types of databases (e.g. badger)
+	config.Database, err = etcd.New(cfg.Database.Endpoints)
 	if err != nil {
 		return nil, err
 	}
 
-	return itsyouonline.NewClient(policy.Organization, policy.IYOAppID, policy.IYOSecret), nil
-}
-
-func readPolicy() (client.Policy, error) {
-	// read config file
-	f, err := os.Open(rootCfg.ConfigFile)
+	// create the metadata encoding func pair
+	config.MarshalFuncPair, err = encoding.NewMarshalFuncPair(cfg.Encoding)
 	if err != nil {
-		return client.Policy{}, err
+		return nil, err
 	}
 
-	// parse config file and return it as a policy object if possible
-	return client.NewPolicyFromReader(f)
+	if len(cfg.Encryption.PrivateKey) == 0 {
+		// create potentially insecure metastor storage
+		return metastor.NewClient(config)
+	}
+
+	// create the constructor which will create our encrypter-decrypter when needed
+	config.ProcessorConstructor = func() (processing.Processor, error) {
+		return processing.NewEncrypterDecrypter(
+			cfg.Encryption.Type, []byte(cfg.Encryption.PrivateKey))
+	}
+	// ensure the constructor is valid,
+	// as most errors (if not all) are static, and will only fail due to the given input,
+	// meaning that if it can be created it now, it should be fine later on as well
+	_, err = config.ProcessorConstructor()
+	if err != nil {
+		return nil, err
+	}
+
+	// create our full-configured metastor client,
+	// including encryption support for our metadata in binary form
+	return metastor.NewClient(config)
+}
+
+func getNamespaceManager() (*itsyouonline.Client, error) {
+	cfg, err := client.ReadConfig(rootCfg.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	return itsyouonline.NewClient(cfg.IYO)
 }
 
 func init() {
@@ -85,4 +145,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(
 		&rootCfg.ConfigFile, "config", "C", "config.yaml",
 		"Path to the configuration file.")
+	rootCmd.PersistentFlags().IntVarP(
+		&rootCfg.JobCount, "jobs", "J", runtime.NumCPU()*2,
+		"number of parallel jobs to run for tasks that support this")
 }

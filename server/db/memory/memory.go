@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package memory
 
 import (
@@ -5,13 +21,15 @@ import (
 	"context"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/zero-os/0-stor/server/db"
+
+	log "github.com/Sirupsen/logrus"
 )
 
-// DB implements the db.DB interace
+// DB implements the db.DB interface
 type DB struct {
 	m   map[string][]byte
+	c   map[string]uint64
 	mux sync.RWMutex
 }
 
@@ -20,7 +38,42 @@ type DB struct {
 func New() *DB {
 	return &DB{
 		m: make(map[string][]byte),
+		c: make(map[string]uint64),
 	}
+}
+
+// Set implements DB.Set
+func (mdb *DB) Set(key []byte, data []byte) error {
+	if key == nil {
+		return db.ErrNilKey
+	}
+
+	b := make([]byte, len(data))
+	copy(b, data)
+	mdb.mux.Lock()
+	mdb.m[string(key)] = b
+	mdb.mux.Unlock()
+	return nil
+}
+
+// SetScoped implements DB.SetScoped
+func (mdb *DB) SetScoped(scopeKey, data []byte) ([]byte, error) {
+	if scopeKey == nil {
+		return nil, db.ErrNilKey
+	}
+
+	b := make([]byte, len(data))
+	copy(b, data)
+
+	scopeKeyStr := string(scopeKey)
+
+	mdb.mux.Lock()
+	key := db.ScopedSequenceKey(scopeKey, mdb.c[scopeKeyStr])
+	mdb.c[scopeKeyStr]++
+	mdb.m[string(key)] = b
+	mdb.mux.Unlock()
+
+	return key, nil
 }
 
 // Get implements DB.Get
@@ -55,20 +108,6 @@ func (mdb *DB) Exists(key []byte) (bool, error) {
 	return exists, nil
 }
 
-// Set implements DB.Set
-func (mdb *DB) Set(key []byte, value []byte) error {
-	if key == nil {
-		return db.ErrNilKey
-	}
-
-	b := make([]byte, len(value))
-	copy(b, value)
-	mdb.mux.Lock()
-	mdb.m[string(key)] = b
-	mdb.mux.Unlock()
-	return nil
-}
-
 // Delete implements DB.Delete
 func (mdb *DB) Delete(key []byte) error {
 	if key == nil {
@@ -78,44 +117,6 @@ func (mdb *DB) Delete(key []byte) error {
 	mdb.mux.Lock()
 	delete(mdb.m, string(key))
 	mdb.mux.Unlock()
-	return nil
-}
-
-// Update implements interface DB.Update
-func (mdb *DB) Update(key []byte, cb db.UpdateCallback) error {
-	if cb == nil {
-		panic("(*DB).Update expects a non-nil UpdateCallback")
-	}
-	if key == nil {
-		return db.ErrNilKey
-	}
-
-	mdb.mux.Lock()
-	defer mdb.mux.Unlock()
-
-	v := mdb.m[string(key)]
-	input := make([]byte, len(v))
-	copy(input, v)
-
-	output, err := cb(input)
-	if err != nil {
-		log.Errorf("(*DB).Update callback returned an error: %v\n", err)
-		return err
-	}
-
-	if output == nil {
-		if input == nil {
-			return nil // nothing to do
-		}
-		// delete value
-		delete(mdb.m, string(key))
-		return nil
-	}
-
-	// store the new value
-	v = make([]byte, len(output))
-	copy(v, output)
-	mdb.m[string(key)] = v
 	return nil
 }
 
@@ -173,7 +174,11 @@ func (mdb *DB) ListItems(ctx context.Context, prefix []byte) (<-chan db.Item, er
 				case <-ctx.Done():
 					// ensure we close item, so it becomes unusable
 					err := item.Close()
-					log.Warningf("context closed before item is closed, force-closing item (err: %v)", err)
+					if err != nil && err != db.ErrClosedItem {
+						log.Warningf("context closed before item is closed, force-closing item (err: %v)", err)
+					} else {
+						log.Warning("context closed before item is closed, force-closing item")
+					}
 					return // return early
 				}
 			}
@@ -200,15 +205,17 @@ type Item struct {
 
 // Key implements interface Item.Key
 func (item *Item) Key() []byte {
+	if item.done == nil {
+		return nil
+	}
 	return item.key
 }
 
 // Value implements interface Item.Value
 func (item *Item) Value() ([]byte, error) {
-	if item.key == nil {
+	if item.done == nil {
 		return nil, db.ErrClosedItem
 	}
-
 	return item.val, nil
 }
 
@@ -217,12 +224,9 @@ func (item *Item) Error() error { return nil }
 
 // Close implements interface Item.Close
 func (item *Item) Close() error {
-	if item.key == nil {
+	if item.done == nil {
 		return db.ErrClosedItem
 	}
-
-	// make this item unusable
-	item.key, item.val = nil, nil
 
 	// notifies the DB (item owner),
 	// that the item is no longer needed by the user,

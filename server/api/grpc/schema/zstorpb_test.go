@@ -8,24 +8,18 @@ It is generated from these files:
 	schema/zstor.proto
 
 It has these top-level messages:
-	Empty
-	Namespace
-	Object
 	GetNamespaceRequest
-	GetNamespaceReply
-	ListObjectsRequest
+	GetNamespaceResponse
 	CreateObjectRequest
-	CreateObjectReply
-	ExistsObjectRequest
-	ExistsObjectReply
+	CreateObjectResponse
 	GetObjectRequest
-	GetObjectReply
+	GetObjectResponse
 	DeleteObjectRequest
-	DeleteObjectReply
-	UpdateReferenceListRequest
-	UpdateReferenceListReply
-	CheckRequest
-	CheckResponse
+	DeleteObjectResponse
+	GetObjectStatusRequest
+	GetObjectStatusResponse
+	ListObjectKeysRequest
+	ListObjectKeysResponse
 */
 package zstor
 
@@ -43,294 +37,6 @@ import _ "github.com/gogo/protobuf/gogoproto"
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-func TestEmptyProto(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedEmpty(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Empty{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	littlefuzz := make([]byte, len(dAtA))
-	copy(littlefuzz, dAtA)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-	if len(littlefuzz) > 0 {
-		fuzzamount := 100
-		for i := 0; i < fuzzamount; i++ {
-			littlefuzz[popr.Intn(len(littlefuzz))] = byte(popr.Intn(256))
-			littlefuzz = append(littlefuzz, byte(popr.Intn(256)))
-		}
-		// shouldn't panic
-		_ = proto.Unmarshal(littlefuzz, msg)
-	}
-}
-
-func TestEmptyMarshalTo(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedEmpty(popr, false)
-	size := p.Size()
-	dAtA := make([]byte, size)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	_, err := p.MarshalTo(dAtA)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Empty{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func BenchmarkEmptyProtoMarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*Empty, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedEmpty(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkEmptyProtoUnmarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedEmpty(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &Empty{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestNamespaceProto(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedNamespace(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Namespace{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	littlefuzz := make([]byte, len(dAtA))
-	copy(littlefuzz, dAtA)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-	if len(littlefuzz) > 0 {
-		fuzzamount := 100
-		for i := 0; i < fuzzamount; i++ {
-			littlefuzz[popr.Intn(len(littlefuzz))] = byte(popr.Intn(256))
-			littlefuzz = append(littlefuzz, byte(popr.Intn(256)))
-		}
-		// shouldn't panic
-		_ = proto.Unmarshal(littlefuzz, msg)
-	}
-}
-
-func TestNamespaceMarshalTo(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedNamespace(popr, false)
-	size := p.Size()
-	dAtA := make([]byte, size)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	_, err := p.MarshalTo(dAtA)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Namespace{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func BenchmarkNamespaceProtoMarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*Namespace, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedNamespace(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkNamespaceProtoUnmarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedNamespace(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &Namespace{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestObjectProto(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedObject(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Object{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	littlefuzz := make([]byte, len(dAtA))
-	copy(littlefuzz, dAtA)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-	if len(littlefuzz) > 0 {
-		fuzzamount := 100
-		for i := 0; i < fuzzamount; i++ {
-			littlefuzz[popr.Intn(len(littlefuzz))] = byte(popr.Intn(256))
-			littlefuzz = append(littlefuzz, byte(popr.Intn(256)))
-		}
-		// shouldn't panic
-		_ = proto.Unmarshal(littlefuzz, msg)
-	}
-}
-
-func TestObjectMarshalTo(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedObject(popr, false)
-	size := p.Size()
-	dAtA := make([]byte, size)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	_, err := p.MarshalTo(dAtA)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Object{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func BenchmarkObjectProtoMarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*Object, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedObject(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkObjectProtoUnmarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedObject(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &Object{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
 
 func TestGetNamespaceRequestProto(t *testing.T) {
 	seed := time.Now().UnixNano()
@@ -428,15 +134,15 @@ func BenchmarkGetNamespaceRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestGetNamespaceReplyProto(t *testing.T) {
+func TestGetNamespaceResponseProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetNamespaceReply(popr, false)
+	p := NewPopulatedGetNamespaceResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &GetNamespaceReply{}
+	msg := &GetNamespaceResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -459,10 +165,10 @@ func TestGetNamespaceReplyProto(t *testing.T) {
 	}
 }
 
-func TestGetNamespaceReplyMarshalTo(t *testing.T) {
+func TestGetNamespaceResponseMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetNamespaceReply(popr, false)
+	p := NewPopulatedGetNamespaceResponse(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -472,7 +178,7 @@ func TestGetNamespaceReplyMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &GetNamespaceReply{}
+	msg := &GetNamespaceResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -484,12 +190,12 @@ func TestGetNamespaceReplyMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkGetNamespaceReplyProtoMarshal(b *testing.B) {
+func BenchmarkGetNamespaceResponseProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*GetNamespaceReply, 10000)
+	pops := make([]*GetNamespaceResponse, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedGetNamespaceReply(popr, false)
+		pops[i] = NewPopulatedGetNamespaceResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -502,114 +208,18 @@ func BenchmarkGetNamespaceReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetNamespaceReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkGetNamespaceResponseProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedGetNamespaceReply(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedGetNamespaceResponse(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &GetNamespaceReply{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestListObjectsRequestProto(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedListObjectsRequest(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ListObjectsRequest{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	littlefuzz := make([]byte, len(dAtA))
-	copy(littlefuzz, dAtA)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-	if len(littlefuzz) > 0 {
-		fuzzamount := 100
-		for i := 0; i < fuzzamount; i++ {
-			littlefuzz[popr.Intn(len(littlefuzz))] = byte(popr.Intn(256))
-			littlefuzz = append(littlefuzz, byte(popr.Intn(256)))
-		}
-		// shouldn't panic
-		_ = proto.Unmarshal(littlefuzz, msg)
-	}
-}
-
-func TestListObjectsRequestMarshalTo(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedListObjectsRequest(popr, false)
-	size := p.Size()
-	dAtA := make([]byte, size)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	_, err := p.MarshalTo(dAtA)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ListObjectsRequest{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func BenchmarkListObjectsRequestProtoMarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*ListObjectsRequest, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedListObjectsRequest(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkListObjectsRequestProtoUnmarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedListObjectsRequest(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &ListObjectsRequest{}
+	msg := &GetNamespaceResponse{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -716,15 +326,15 @@ func BenchmarkCreateObjectRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestCreateObjectReplyProto(t *testing.T) {
+func TestCreateObjectResponseProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCreateObjectReply(popr, false)
+	p := NewPopulatedCreateObjectResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CreateObjectReply{}
+	msg := &CreateObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -747,10 +357,10 @@ func TestCreateObjectReplyProto(t *testing.T) {
 	}
 }
 
-func TestCreateObjectReplyMarshalTo(t *testing.T) {
+func TestCreateObjectResponseMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCreateObjectReply(popr, false)
+	p := NewPopulatedCreateObjectResponse(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -760,7 +370,7 @@ func TestCreateObjectReplyMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CreateObjectReply{}
+	msg := &CreateObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -772,12 +382,12 @@ func TestCreateObjectReplyMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkCreateObjectReplyProtoMarshal(b *testing.B) {
+func BenchmarkCreateObjectResponseProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*CreateObjectReply, 10000)
+	pops := make([]*CreateObjectResponse, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedCreateObjectReply(popr, false)
+		pops[i] = NewPopulatedCreateObjectResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -790,210 +400,18 @@ func BenchmarkCreateObjectReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkCreateObjectReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkCreateObjectResponseProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedCreateObjectReply(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedCreateObjectResponse(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &CreateObjectReply{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestExistsObjectRequestProto(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectRequest(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ExistsObjectRequest{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	littlefuzz := make([]byte, len(dAtA))
-	copy(littlefuzz, dAtA)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-	if len(littlefuzz) > 0 {
-		fuzzamount := 100
-		for i := 0; i < fuzzamount; i++ {
-			littlefuzz[popr.Intn(len(littlefuzz))] = byte(popr.Intn(256))
-			littlefuzz = append(littlefuzz, byte(popr.Intn(256)))
-		}
-		// shouldn't panic
-		_ = proto.Unmarshal(littlefuzz, msg)
-	}
-}
-
-func TestExistsObjectRequestMarshalTo(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectRequest(popr, false)
-	size := p.Size()
-	dAtA := make([]byte, size)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	_, err := p.MarshalTo(dAtA)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ExistsObjectRequest{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func BenchmarkExistsObjectRequestProtoMarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*ExistsObjectRequest, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedExistsObjectRequest(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkExistsObjectRequestProtoUnmarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedExistsObjectRequest(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &ExistsObjectRequest{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestExistsObjectReplyProto(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectReply(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ExistsObjectReply{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	littlefuzz := make([]byte, len(dAtA))
-	copy(littlefuzz, dAtA)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-	if len(littlefuzz) > 0 {
-		fuzzamount := 100
-		for i := 0; i < fuzzamount; i++ {
-			littlefuzz[popr.Intn(len(littlefuzz))] = byte(popr.Intn(256))
-			littlefuzz = append(littlefuzz, byte(popr.Intn(256)))
-		}
-		// shouldn't panic
-		_ = proto.Unmarshal(littlefuzz, msg)
-	}
-}
-
-func TestExistsObjectReplyMarshalTo(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectReply(popr, false)
-	size := p.Size()
-	dAtA := make([]byte, size)
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	_, err := p.MarshalTo(dAtA)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ExistsObjectReply{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	for i := range dAtA {
-		dAtA[i] = byte(popr.Intn(256))
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func BenchmarkExistsObjectReplyProtoMarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*ExistsObjectReply, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedExistsObjectReply(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkExistsObjectReplyProtoUnmarshal(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedExistsObjectReply(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &ExistsObjectReply{}
+	msg := &CreateObjectResponse{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1100,15 +518,15 @@ func BenchmarkGetObjectRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestGetObjectReplyProto(t *testing.T) {
+func TestGetObjectResponseProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetObjectReply(popr, false)
+	p := NewPopulatedGetObjectResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1131,10 +549,10 @@ func TestGetObjectReplyProto(t *testing.T) {
 	}
 }
 
-func TestGetObjectReplyMarshalTo(t *testing.T) {
+func TestGetObjectResponseMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetObjectReply(popr, false)
+	p := NewPopulatedGetObjectResponse(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -1144,7 +562,7 @@ func TestGetObjectReplyMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1156,12 +574,12 @@ func TestGetObjectReplyMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkGetObjectReplyProtoMarshal(b *testing.B) {
+func BenchmarkGetObjectResponseProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*GetObjectReply, 10000)
+	pops := make([]*GetObjectResponse, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedGetObjectReply(popr, false)
+		pops[i] = NewPopulatedGetObjectResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1174,18 +592,18 @@ func BenchmarkGetObjectReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetObjectReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkGetObjectResponseProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedGetObjectReply(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedGetObjectResponse(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1292,15 +710,15 @@ func BenchmarkDeleteObjectRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestDeleteObjectReplyProto(t *testing.T) {
+func TestDeleteObjectResponseProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedDeleteObjectReply(popr, false)
+	p := NewPopulatedDeleteObjectResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1323,10 +741,10 @@ func TestDeleteObjectReplyProto(t *testing.T) {
 	}
 }
 
-func TestDeleteObjectReplyMarshalTo(t *testing.T) {
+func TestDeleteObjectResponseMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedDeleteObjectReply(popr, false)
+	p := NewPopulatedDeleteObjectResponse(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -1336,7 +754,7 @@ func TestDeleteObjectReplyMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1348,12 +766,12 @@ func TestDeleteObjectReplyMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkDeleteObjectReplyProtoMarshal(b *testing.B) {
+func BenchmarkDeleteObjectResponseProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*DeleteObjectReply, 10000)
+	pops := make([]*DeleteObjectResponse, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedDeleteObjectReply(popr, false)
+		pops[i] = NewPopulatedDeleteObjectResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1366,18 +784,18 @@ func BenchmarkDeleteObjectReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkDeleteObjectReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkDeleteObjectResponseProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedDeleteObjectReply(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedDeleteObjectResponse(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1388,15 +806,15 @@ func BenchmarkDeleteObjectReplyProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestUpdateReferenceListRequestProto(t *testing.T) {
+func TestGetObjectStatusRequestProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListRequest(popr, false)
+	p := NewPopulatedGetObjectStatusRequest(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1419,10 +837,10 @@ func TestUpdateReferenceListRequestProto(t *testing.T) {
 	}
 }
 
-func TestUpdateReferenceListRequestMarshalTo(t *testing.T) {
+func TestGetObjectStatusRequestMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListRequest(popr, false)
+	p := NewPopulatedGetObjectStatusRequest(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -1432,7 +850,7 @@ func TestUpdateReferenceListRequestMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1444,12 +862,12 @@ func TestUpdateReferenceListRequestMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkUpdateReferenceListRequestProtoMarshal(b *testing.B) {
+func BenchmarkGetObjectStatusRequestProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*UpdateReferenceListRequest, 10000)
+	pops := make([]*GetObjectStatusRequest, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedUpdateReferenceListRequest(popr, false)
+		pops[i] = NewPopulatedGetObjectStatusRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1462,18 +880,18 @@ func BenchmarkUpdateReferenceListRequestProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkUpdateReferenceListRequestProtoUnmarshal(b *testing.B) {
+func BenchmarkGetObjectStatusRequestProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedUpdateReferenceListRequest(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedGetObjectStatusRequest(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1484,15 +902,15 @@ func BenchmarkUpdateReferenceListRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestUpdateReferenceListReplyProto(t *testing.T) {
+func TestGetObjectStatusResponseProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListReply(popr, false)
+	p := NewPopulatedGetObjectStatusResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1515,10 +933,10 @@ func TestUpdateReferenceListReplyProto(t *testing.T) {
 	}
 }
 
-func TestUpdateReferenceListReplyMarshalTo(t *testing.T) {
+func TestGetObjectStatusResponseMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListReply(popr, false)
+	p := NewPopulatedGetObjectStatusResponse(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -1528,7 +946,7 @@ func TestUpdateReferenceListReplyMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1540,12 +958,12 @@ func TestUpdateReferenceListReplyMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkUpdateReferenceListReplyProtoMarshal(b *testing.B) {
+func BenchmarkGetObjectStatusResponseProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*UpdateReferenceListReply, 10000)
+	pops := make([]*GetObjectStatusResponse, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedUpdateReferenceListReply(popr, false)
+		pops[i] = NewPopulatedGetObjectStatusResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1558,18 +976,18 @@ func BenchmarkUpdateReferenceListReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkUpdateReferenceListReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkGetObjectStatusResponseProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedUpdateReferenceListReply(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedGetObjectStatusResponse(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1580,15 +998,15 @@ func BenchmarkUpdateReferenceListReplyProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestCheckRequestProto(t *testing.T) {
+func TestListObjectKeysRequestProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckRequest(popr, false)
+	p := NewPopulatedListObjectKeysRequest(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1611,10 +1029,10 @@ func TestCheckRequestProto(t *testing.T) {
 	}
 }
 
-func TestCheckRequestMarshalTo(t *testing.T) {
+func TestListObjectKeysRequestMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckRequest(popr, false)
+	p := NewPopulatedListObjectKeysRequest(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -1624,7 +1042,7 @@ func TestCheckRequestMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1636,12 +1054,12 @@ func TestCheckRequestMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkCheckRequestProtoMarshal(b *testing.B) {
+func BenchmarkListObjectKeysRequestProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*CheckRequest, 10000)
+	pops := make([]*ListObjectKeysRequest, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedCheckRequest(popr, false)
+		pops[i] = NewPopulatedListObjectKeysRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1654,18 +1072,18 @@ func BenchmarkCheckRequestProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkCheckRequestProtoUnmarshal(b *testing.B) {
+func BenchmarkListObjectKeysRequestProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedCheckRequest(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedListObjectKeysRequest(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1676,15 +1094,15 @@ func BenchmarkCheckRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestCheckResponseProto(t *testing.T) {
+func TestListObjectKeysResponseProto(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckResponse(popr, false)
+	p := NewPopulatedListObjectKeysResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1707,10 +1125,10 @@ func TestCheckResponseProto(t *testing.T) {
 	}
 }
 
-func TestCheckResponseMarshalTo(t *testing.T) {
+func TestListObjectKeysResponseMarshalTo(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckResponse(popr, false)
+	p := NewPopulatedListObjectKeysResponse(popr, false)
 	size := p.Size()
 	dAtA := make([]byte, size)
 	for i := range dAtA {
@@ -1720,7 +1138,7 @@ func TestCheckResponseMarshalTo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -1732,12 +1150,12 @@ func TestCheckResponseMarshalTo(t *testing.T) {
 	}
 }
 
-func BenchmarkCheckResponseProtoMarshal(b *testing.B) {
+func BenchmarkListObjectKeysResponseProtoMarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*CheckResponse, 10000)
+	pops := make([]*ListObjectKeysResponse, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedCheckResponse(popr, false)
+		pops[i] = NewPopulatedListObjectKeysResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1750,18 +1168,18 @@ func BenchmarkCheckResponseProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkCheckResponseProtoUnmarshal(b *testing.B) {
+func BenchmarkListObjectKeysResponseProtoUnmarshal(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := proto.Marshal(NewPopulatedCheckResponse(popr, false))
+		dAtA, err := proto.Marshal(NewPopulatedListObjectKeysResponse(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -1772,60 +1190,6 @@ func BenchmarkCheckResponseProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestEmptyJSON(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedEmpty(popr, true)
-	marshaler := jsonpb.Marshaler{}
-	jsondata, err := marshaler.MarshalToString(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Empty{}
-	err = jsonpb.UnmarshalString(jsondata, msg)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
-	}
-}
-func TestNamespaceJSON(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedNamespace(popr, true)
-	marshaler := jsonpb.Marshaler{}
-	jsondata, err := marshaler.MarshalToString(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Namespace{}
-	err = jsonpb.UnmarshalString(jsondata, msg)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
-	}
-}
-func TestObjectJSON(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedObject(popr, true)
-	marshaler := jsonpb.Marshaler{}
-	jsondata, err := marshaler.MarshalToString(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &Object{}
-	err = jsonpb.UnmarshalString(jsondata, msg)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
-	}
-}
 func TestGetNamespaceRequestJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
@@ -1844,34 +1208,16 @@ func TestGetNamespaceRequestJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestGetNamespaceReplyJSON(t *testing.T) {
+func TestGetNamespaceResponseJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetNamespaceReply(popr, true)
+	p := NewPopulatedGetNamespaceResponse(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &GetNamespaceReply{}
-	err = jsonpb.UnmarshalString(jsondata, msg)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
-	}
-}
-func TestListObjectsRequestJSON(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedListObjectsRequest(popr, true)
-	marshaler := jsonpb.Marshaler{}
-	jsondata, err := marshaler.MarshalToString(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ListObjectsRequest{}
+	msg := &GetNamespaceResponse{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -1898,52 +1244,16 @@ func TestCreateObjectRequestJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestCreateObjectReplyJSON(t *testing.T) {
+func TestCreateObjectResponseJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCreateObjectReply(popr, true)
+	p := NewPopulatedCreateObjectResponse(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CreateObjectReply{}
-	err = jsonpb.UnmarshalString(jsondata, msg)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
-	}
-}
-func TestExistsObjectRequestJSON(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectRequest(popr, true)
-	marshaler := jsonpb.Marshaler{}
-	jsondata, err := marshaler.MarshalToString(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ExistsObjectRequest{}
-	err = jsonpb.UnmarshalString(jsondata, msg)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
-	}
-}
-func TestExistsObjectReplyJSON(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectReply(popr, true)
-	marshaler := jsonpb.Marshaler{}
-	jsondata, err := marshaler.MarshalToString(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	msg := &ExistsObjectReply{}
+	msg := &CreateObjectResponse{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -1970,16 +1280,16 @@ func TestGetObjectRequestJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestGetObjectReplyJSON(t *testing.T) {
+func TestGetObjectResponseJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetObjectReply(popr, true)
+	p := NewPopulatedGetObjectResponse(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -2006,16 +1316,16 @@ func TestDeleteObjectRequestJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestDeleteObjectReplyJSON(t *testing.T) {
+func TestDeleteObjectResponseJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedDeleteObjectReply(popr, true)
+	p := NewPopulatedDeleteObjectResponse(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -2024,16 +1334,16 @@ func TestDeleteObjectReplyJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestUpdateReferenceListRequestJSON(t *testing.T) {
+func TestGetObjectStatusRequestJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListRequest(popr, true)
+	p := NewPopulatedGetObjectStatusRequest(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -2042,16 +1352,16 @@ func TestUpdateReferenceListRequestJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestUpdateReferenceListReplyJSON(t *testing.T) {
+func TestGetObjectStatusResponseJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListReply(popr, true)
+	p := NewPopulatedGetObjectStatusResponse(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -2060,16 +1370,16 @@ func TestUpdateReferenceListReplyJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestCheckRequestJSON(t *testing.T) {
+func TestListObjectKeysRequestJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckRequest(popr, true)
+	p := NewPopulatedListObjectKeysRequest(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -2078,16 +1388,16 @@ func TestCheckRequestJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestCheckResponseJSON(t *testing.T) {
+func TestListObjectKeysResponseJSON(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckResponse(popr, true)
+	p := NewPopulatedListObjectKeysResponse(popr, true)
 	marshaler := jsonpb.Marshaler{}
 	jsondata, err := marshaler.MarshalToString(p)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	err = jsonpb.UnmarshalString(jsondata, msg)
 	if err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
@@ -2096,90 +1406,6 @@ func TestCheckResponseJSON(t *testing.T) {
 		t.Fatalf("seed = %d, %#v !Json Equal %#v", seed, msg, p)
 	}
 }
-func TestEmptyProtoText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedEmpty(popr, true)
-	dAtA := proto.MarshalTextString(p)
-	msg := &Empty{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestEmptyProtoCompactText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedEmpty(popr, true)
-	dAtA := proto.CompactTextString(p)
-	msg := &Empty{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestNamespaceProtoText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedNamespace(popr, true)
-	dAtA := proto.MarshalTextString(p)
-	msg := &Namespace{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestNamespaceProtoCompactText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedNamespace(popr, true)
-	dAtA := proto.CompactTextString(p)
-	msg := &Namespace{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestObjectProtoText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedObject(popr, true)
-	dAtA := proto.MarshalTextString(p)
-	msg := &Object{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestObjectProtoCompactText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedObject(popr, true)
-	dAtA := proto.CompactTextString(p)
-	msg := &Object{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
 func TestGetNamespaceRequestProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
@@ -2208,12 +1434,12 @@ func TestGetNamespaceRequestProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestGetNamespaceReplyProtoText(t *testing.T) {
+func TestGetNamespaceResponseProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetNamespaceReply(popr, true)
+	p := NewPopulatedGetNamespaceResponse(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &GetNamespaceReply{}
+	msg := &GetNamespaceResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2222,40 +1448,12 @@ func TestGetNamespaceReplyProtoText(t *testing.T) {
 	}
 }
 
-func TestGetNamespaceReplyProtoCompactText(t *testing.T) {
+func TestGetNamespaceResponseProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetNamespaceReply(popr, true)
+	p := NewPopulatedGetNamespaceResponse(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &GetNamespaceReply{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestListObjectsRequestProtoText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedListObjectsRequest(popr, true)
-	dAtA := proto.MarshalTextString(p)
-	msg := &ListObjectsRequest{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestListObjectsRequestProtoCompactText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedListObjectsRequest(popr, true)
-	dAtA := proto.CompactTextString(p)
-	msg := &ListObjectsRequest{}
+	msg := &GetNamespaceResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2292,12 +1490,12 @@ func TestCreateObjectRequestProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestCreateObjectReplyProtoText(t *testing.T) {
+func TestCreateObjectResponseProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCreateObjectReply(popr, true)
+	p := NewPopulatedCreateObjectResponse(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &CreateObjectReply{}
+	msg := &CreateObjectResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2306,68 +1504,12 @@ func TestCreateObjectReplyProtoText(t *testing.T) {
 	}
 }
 
-func TestCreateObjectReplyProtoCompactText(t *testing.T) {
+func TestCreateObjectResponseProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCreateObjectReply(popr, true)
+	p := NewPopulatedCreateObjectResponse(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &CreateObjectReply{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestExistsObjectRequestProtoText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectRequest(popr, true)
-	dAtA := proto.MarshalTextString(p)
-	msg := &ExistsObjectRequest{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestExistsObjectRequestProtoCompactText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectRequest(popr, true)
-	dAtA := proto.CompactTextString(p)
-	msg := &ExistsObjectRequest{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestExistsObjectReplyProtoText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectReply(popr, true)
-	dAtA := proto.MarshalTextString(p)
-	msg := &ExistsObjectReply{}
-	if err := proto.UnmarshalText(dAtA, msg); err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	if !p.Equal(msg) {
-		t.Fatalf("seed = %d, %#v !Proto %#v", seed, msg, p)
-	}
-}
-
-func TestExistsObjectReplyProtoCompactText(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectReply(popr, true)
-	dAtA := proto.CompactTextString(p)
-	msg := &ExistsObjectReply{}
+	msg := &CreateObjectResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2404,12 +1546,12 @@ func TestGetObjectRequestProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestGetObjectReplyProtoText(t *testing.T) {
+func TestGetObjectResponseProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetObjectReply(popr, true)
+	p := NewPopulatedGetObjectResponse(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2418,12 +1560,12 @@ func TestGetObjectReplyProtoText(t *testing.T) {
 	}
 }
 
-func TestGetObjectReplyProtoCompactText(t *testing.T) {
+func TestGetObjectResponseProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetObjectReply(popr, true)
+	p := NewPopulatedGetObjectResponse(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2460,12 +1602,12 @@ func TestDeleteObjectRequestProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestDeleteObjectReplyProtoText(t *testing.T) {
+func TestDeleteObjectResponseProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedDeleteObjectReply(popr, true)
+	p := NewPopulatedDeleteObjectResponse(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2474,12 +1616,12 @@ func TestDeleteObjectReplyProtoText(t *testing.T) {
 	}
 }
 
-func TestDeleteObjectReplyProtoCompactText(t *testing.T) {
+func TestDeleteObjectResponseProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedDeleteObjectReply(popr, true)
+	p := NewPopulatedDeleteObjectResponse(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2488,12 +1630,12 @@ func TestDeleteObjectReplyProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestUpdateReferenceListRequestProtoText(t *testing.T) {
+func TestGetObjectStatusRequestProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListRequest(popr, true)
+	p := NewPopulatedGetObjectStatusRequest(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2502,12 +1644,12 @@ func TestUpdateReferenceListRequestProtoText(t *testing.T) {
 	}
 }
 
-func TestUpdateReferenceListRequestProtoCompactText(t *testing.T) {
+func TestGetObjectStatusRequestProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListRequest(popr, true)
+	p := NewPopulatedGetObjectStatusRequest(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2516,12 +1658,12 @@ func TestUpdateReferenceListRequestProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestUpdateReferenceListReplyProtoText(t *testing.T) {
+func TestGetObjectStatusResponseProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListReply(popr, true)
+	p := NewPopulatedGetObjectStatusResponse(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2530,12 +1672,12 @@ func TestUpdateReferenceListReplyProtoText(t *testing.T) {
 	}
 }
 
-func TestUpdateReferenceListReplyProtoCompactText(t *testing.T) {
+func TestGetObjectStatusResponseProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListReply(popr, true)
+	p := NewPopulatedGetObjectStatusResponse(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2544,12 +1686,12 @@ func TestUpdateReferenceListReplyProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestCheckRequestProtoText(t *testing.T) {
+func TestListObjectKeysRequestProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckRequest(popr, true)
+	p := NewPopulatedListObjectKeysRequest(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2558,12 +1700,12 @@ func TestCheckRequestProtoText(t *testing.T) {
 	}
 }
 
-func TestCheckRequestProtoCompactText(t *testing.T) {
+func TestListObjectKeysRequestProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckRequest(popr, true)
+	p := NewPopulatedListObjectKeysRequest(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2572,12 +1714,12 @@ func TestCheckRequestProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestCheckResponseProtoText(t *testing.T) {
+func TestListObjectKeysResponseProtoText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckResponse(popr, true)
+	p := NewPopulatedListObjectKeysResponse(popr, true)
 	dAtA := proto.MarshalTextString(p)
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2586,12 +1728,12 @@ func TestCheckResponseProtoText(t *testing.T) {
 	}
 }
 
-func TestCheckResponseProtoCompactText(t *testing.T) {
+func TestListObjectKeysResponseProtoCompactText(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckResponse(popr, true)
+	p := NewPopulatedListObjectKeysResponse(popr, true)
 	dAtA := proto.CompactTextString(p)
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	if err := proto.UnmarshalText(dAtA, msg); err != nil {
 		t.Fatalf("seed = %d, err = %v", seed, err)
 	}
@@ -2600,78 +1742,6 @@ func TestCheckResponseProtoCompactText(t *testing.T) {
 	}
 }
 
-func TestEmptyCompare(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedEmpty(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	msg := &Empty{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		panic(err)
-	}
-	if c := p.Compare(msg); c != 0 {
-		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
-	}
-	p2 := NewPopulatedEmpty(popr, false)
-	c := p.Compare(p2)
-	c2 := p2.Compare(p)
-	if c != (-1 * c2) {
-		t.Errorf("p.Compare(p2) = %d", c)
-		t.Errorf("p2.Compare(p) = %d", c2)
-		t.Errorf("p = %#v", p)
-		t.Errorf("p2 = %#v", p2)
-	}
-}
-func TestNamespaceCompare(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedNamespace(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	msg := &Namespace{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		panic(err)
-	}
-	if c := p.Compare(msg); c != 0 {
-		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
-	}
-	p2 := NewPopulatedNamespace(popr, false)
-	c := p.Compare(p2)
-	c2 := p2.Compare(p)
-	if c != (-1 * c2) {
-		t.Errorf("p.Compare(p2) = %d", c)
-		t.Errorf("p2.Compare(p) = %d", c2)
-		t.Errorf("p = %#v", p)
-		t.Errorf("p2 = %#v", p2)
-	}
-}
-func TestObjectCompare(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedObject(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	msg := &Object{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		panic(err)
-	}
-	if c := p.Compare(msg); c != 0 {
-		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
-	}
-	p2 := NewPopulatedObject(popr, false)
-	c := p.Compare(p2)
-	c2 := p2.Compare(p)
-	if c != (-1 * c2) {
-		t.Errorf("p.Compare(p2) = %d", c)
-		t.Errorf("p2.Compare(p) = %d", c2)
-		t.Errorf("p = %#v", p)
-		t.Errorf("p2 = %#v", p2)
-	}
-}
 func TestGetNamespaceRequestCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedGetNamespaceRequest(popr, false)
@@ -2696,45 +1766,21 @@ func TestGetNamespaceRequestCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestGetNamespaceReplyCompare(t *testing.T) {
+func TestGetNamespaceResponseCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedGetNamespaceReply(popr, false)
+	p := NewPopulatedGetNamespaceResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &GetNamespaceReply{}
+	msg := &GetNamespaceResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedGetNamespaceReply(popr, false)
-	c := p.Compare(p2)
-	c2 := p2.Compare(p)
-	if c != (-1 * c2) {
-		t.Errorf("p.Compare(p2) = %d", c)
-		t.Errorf("p2.Compare(p) = %d", c2)
-		t.Errorf("p = %#v", p)
-		t.Errorf("p2 = %#v", p2)
-	}
-}
-func TestListObjectsRequestCompare(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedListObjectsRequest(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	msg := &ListObjectsRequest{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		panic(err)
-	}
-	if c := p.Compare(msg); c != 0 {
-		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
-	}
-	p2 := NewPopulatedListObjectsRequest(popr, false)
+	p2 := NewPopulatedGetNamespaceResponse(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -2768,69 +1814,21 @@ func TestCreateObjectRequestCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestCreateObjectReplyCompare(t *testing.T) {
+func TestCreateObjectResponseCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCreateObjectReply(popr, false)
+	p := NewPopulatedCreateObjectResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &CreateObjectReply{}
+	msg := &CreateObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedCreateObjectReply(popr, false)
-	c := p.Compare(p2)
-	c2 := p2.Compare(p)
-	if c != (-1 * c2) {
-		t.Errorf("p.Compare(p2) = %d", c)
-		t.Errorf("p2.Compare(p) = %d", c2)
-		t.Errorf("p = %#v", p)
-		t.Errorf("p2 = %#v", p2)
-	}
-}
-func TestExistsObjectRequestCompare(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedExistsObjectRequest(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	msg := &ExistsObjectRequest{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		panic(err)
-	}
-	if c := p.Compare(msg); c != 0 {
-		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
-	}
-	p2 := NewPopulatedExistsObjectRequest(popr, false)
-	c := p.Compare(p2)
-	c2 := p2.Compare(p)
-	if c != (-1 * c2) {
-		t.Errorf("p.Compare(p2) = %d", c)
-		t.Errorf("p2.Compare(p) = %d", c2)
-		t.Errorf("p = %#v", p)
-		t.Errorf("p2 = %#v", p2)
-	}
-}
-func TestExistsObjectReplyCompare(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedExistsObjectReply(popr, false)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		panic(err)
-	}
-	msg := &ExistsObjectReply{}
-	if err := proto.Unmarshal(dAtA, msg); err != nil {
-		panic(err)
-	}
-	if c := p.Compare(msg); c != 0 {
-		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
-	}
-	p2 := NewPopulatedExistsObjectReply(popr, false)
+	p2 := NewPopulatedCreateObjectResponse(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -2864,21 +1862,21 @@ func TestGetObjectRequestCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestGetObjectReplyCompare(t *testing.T) {
+func TestGetObjectResponseCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedGetObjectReply(popr, false)
+	p := NewPopulatedGetObjectResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &GetObjectReply{}
+	msg := &GetObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedGetObjectReply(popr, false)
+	p2 := NewPopulatedGetObjectResponse(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -2912,21 +1910,21 @@ func TestDeleteObjectRequestCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestDeleteObjectReplyCompare(t *testing.T) {
+func TestDeleteObjectResponseCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedDeleteObjectReply(popr, false)
+	p := NewPopulatedDeleteObjectResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &DeleteObjectReply{}
+	msg := &DeleteObjectResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedDeleteObjectReply(popr, false)
+	p2 := NewPopulatedDeleteObjectResponse(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -2936,21 +1934,21 @@ func TestDeleteObjectReplyCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestUpdateReferenceListRequestCompare(t *testing.T) {
+func TestGetObjectStatusRequestCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedUpdateReferenceListRequest(popr, false)
+	p := NewPopulatedGetObjectStatusRequest(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &UpdateReferenceListRequest{}
+	msg := &GetObjectStatusRequest{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedUpdateReferenceListRequest(popr, false)
+	p2 := NewPopulatedGetObjectStatusRequest(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -2960,21 +1958,21 @@ func TestUpdateReferenceListRequestCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestUpdateReferenceListReplyCompare(t *testing.T) {
+func TestGetObjectStatusResponseCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedUpdateReferenceListReply(popr, false)
+	p := NewPopulatedGetObjectStatusResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &UpdateReferenceListReply{}
+	msg := &GetObjectStatusResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedUpdateReferenceListReply(popr, false)
+	p2 := NewPopulatedGetObjectStatusResponse(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -2984,21 +1982,21 @@ func TestUpdateReferenceListReplyCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestCheckRequestCompare(t *testing.T) {
+func TestListObjectKeysRequestCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCheckRequest(popr, false)
+	p := NewPopulatedListObjectKeysRequest(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &CheckRequest{}
+	msg := &ListObjectKeysRequest{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedCheckRequest(popr, false)
+	p2 := NewPopulatedListObjectKeysRequest(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -3008,21 +2006,21 @@ func TestCheckRequestCompare(t *testing.T) {
 		t.Errorf("p2 = %#v", p2)
 	}
 }
-func TestCheckResponseCompare(t *testing.T) {
+func TestListObjectKeysResponseCompare(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCheckResponse(popr, false)
+	p := NewPopulatedListObjectKeysResponse(popr, false)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
-	msg := &CheckResponse{}
+	msg := &ListObjectKeysResponse{}
 	if err := proto.Unmarshal(dAtA, msg); err != nil {
 		panic(err)
 	}
 	if c := p.Compare(msg); c != 0 {
 		t.Fatalf("%#v !Compare %#v, since %d", msg, p, c)
 	}
-	p2 := NewPopulatedCheckResponse(popr, false)
+	p2 := NewPopulatedListObjectKeysResponse(popr, false)
 	c := p.Compare(p2)
 	c2 := p2.Compare(p)
 	if c != (-1 * c2) {
@@ -3030,45 +2028,6 @@ func TestCheckResponseCompare(t *testing.T) {
 		t.Errorf("p2.Compare(p) = %d", c2)
 		t.Errorf("p = %#v", p)
 		t.Errorf("p2 = %#v", p2)
-	}
-}
-func TestEmptyGoString(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedEmpty(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := parser.ParseExpr(s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-func TestNamespaceGoString(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedNamespace(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := parser.ParseExpr(s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-func TestObjectGoString(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedObject(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := parser.ParseExpr(s1)
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 func TestGetNamespaceRequestGoString(t *testing.T) {
@@ -3084,22 +2043,9 @@ func TestGetNamespaceRequestGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestGetNamespaceReplyGoString(t *testing.T) {
+func TestGetNamespaceResponseGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedGetNamespaceReply(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := parser.ParseExpr(s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-func TestListObjectsRequestGoString(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedListObjectsRequest(popr, false)
+	p := NewPopulatedGetNamespaceResponse(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3123,35 +2069,9 @@ func TestCreateObjectRequestGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestCreateObjectReplyGoString(t *testing.T) {
+func TestCreateObjectResponseGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCreateObjectReply(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := parser.ParseExpr(s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-func TestExistsObjectRequestGoString(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedExistsObjectRequest(popr, false)
-	s1 := p.GoString()
-	s2 := fmt.Sprintf("%#v", p)
-	if s1 != s2 {
-		t.Fatalf("GoString want %v got %v", s1, s2)
-	}
-	_, err := parser.ParseExpr(s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-func TestExistsObjectReplyGoString(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedExistsObjectReply(popr, false)
+	p := NewPopulatedCreateObjectResponse(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3175,9 +2095,9 @@ func TestGetObjectRequestGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestGetObjectReplyGoString(t *testing.T) {
+func TestGetObjectResponseGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedGetObjectReply(popr, false)
+	p := NewPopulatedGetObjectResponse(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3201,9 +2121,9 @@ func TestDeleteObjectRequestGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestDeleteObjectReplyGoString(t *testing.T) {
+func TestDeleteObjectResponseGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedDeleteObjectReply(popr, false)
+	p := NewPopulatedDeleteObjectResponse(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3214,9 +2134,9 @@ func TestDeleteObjectReplyGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestUpdateReferenceListRequestGoString(t *testing.T) {
+func TestGetObjectStatusRequestGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedUpdateReferenceListRequest(popr, false)
+	p := NewPopulatedGetObjectStatusRequest(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3227,9 +2147,9 @@ func TestUpdateReferenceListRequestGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestUpdateReferenceListReplyGoString(t *testing.T) {
+func TestGetObjectStatusResponseGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedUpdateReferenceListReply(popr, false)
+	p := NewPopulatedGetObjectStatusResponse(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3240,9 +2160,9 @@ func TestUpdateReferenceListReplyGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestCheckRequestGoString(t *testing.T) {
+func TestListObjectKeysRequestGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCheckRequest(popr, false)
+	p := NewPopulatedListObjectKeysRequest(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3253,9 +2173,9 @@ func TestCheckRequestGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestCheckResponseGoString(t *testing.T) {
+func TestListObjectKeysResponseGoString(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCheckResponse(popr, false)
+	p := NewPopulatedListObjectKeysResponse(popr, false)
 	s1 := p.GoString()
 	s2 := fmt.Sprintf("%#v", p)
 	if s1 != s2 {
@@ -3266,114 +2186,6 @@ func TestCheckResponseGoString(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestEmptySize(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedEmpty(popr, true)
-	size2 := proto.Size(p)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	size := p.Size()
-	if len(dAtA) != size {
-		t.Errorf("seed = %d, size %v != marshalled size %v", seed, size, len(dAtA))
-	}
-	if size2 != size {
-		t.Errorf("seed = %d, size %v != before marshal proto.Size %v", seed, size, size2)
-	}
-	size3 := proto.Size(p)
-	if size3 != size {
-		t.Errorf("seed = %d, size %v != after marshal proto.Size %v", seed, size, size3)
-	}
-}
-
-func BenchmarkEmptySize(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*Empty, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedEmpty(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestNamespaceSize(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedNamespace(popr, true)
-	size2 := proto.Size(p)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	size := p.Size()
-	if len(dAtA) != size {
-		t.Errorf("seed = %d, size %v != marshalled size %v", seed, size, len(dAtA))
-	}
-	if size2 != size {
-		t.Errorf("seed = %d, size %v != before marshal proto.Size %v", seed, size, size2)
-	}
-	size3 := proto.Size(p)
-	if size3 != size {
-		t.Errorf("seed = %d, size %v != after marshal proto.Size %v", seed, size, size3)
-	}
-}
-
-func BenchmarkNamespaceSize(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*Namespace, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedNamespace(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestObjectSize(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedObject(popr, true)
-	size2 := proto.Size(p)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	size := p.Size()
-	if len(dAtA) != size {
-		t.Errorf("seed = %d, size %v != marshalled size %v", seed, size, len(dAtA))
-	}
-	if size2 != size {
-		t.Errorf("seed = %d, size %v != before marshal proto.Size %v", seed, size, size2)
-	}
-	size3 := proto.Size(p)
-	if size3 != size {
-		t.Errorf("seed = %d, size %v != after marshal proto.Size %v", seed, size, size3)
-	}
-}
-
-func BenchmarkObjectSize(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*Object, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedObject(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
 func TestGetNamespaceRequestSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
@@ -3410,10 +2222,10 @@ func BenchmarkGetNamespaceRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestGetNamespaceReplySize(t *testing.T) {
+func TestGetNamespaceResponseSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetNamespaceReply(popr, true)
+	p := NewPopulatedGetNamespaceResponse(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3432,48 +2244,12 @@ func TestGetNamespaceReplySize(t *testing.T) {
 	}
 }
 
-func BenchmarkGetNamespaceReplySize(b *testing.B) {
+func BenchmarkGetNamespaceResponseSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*GetNamespaceReply, 1000)
+	pops := make([]*GetNamespaceResponse, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedGetNamespaceReply(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestListObjectsRequestSize(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedListObjectsRequest(popr, true)
-	size2 := proto.Size(p)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	size := p.Size()
-	if len(dAtA) != size {
-		t.Errorf("seed = %d, size %v != marshalled size %v", seed, size, len(dAtA))
-	}
-	if size2 != size {
-		t.Errorf("seed = %d, size %v != before marshal proto.Size %v", seed, size, size2)
-	}
-	size3 := proto.Size(p)
-	if size3 != size {
-		t.Errorf("seed = %d, size %v != after marshal proto.Size %v", seed, size, size3)
-	}
-}
-
-func BenchmarkListObjectsRequestSize(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*ListObjectsRequest, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedListObjectsRequest(popr, false)
+		pops[i] = NewPopulatedGetNamespaceResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3518,10 +2294,10 @@ func BenchmarkCreateObjectRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestCreateObjectReplySize(t *testing.T) {
+func TestCreateObjectResponseSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCreateObjectReply(popr, true)
+	p := NewPopulatedCreateObjectResponse(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3540,84 +2316,12 @@ func TestCreateObjectReplySize(t *testing.T) {
 	}
 }
 
-func BenchmarkCreateObjectReplySize(b *testing.B) {
+func BenchmarkCreateObjectResponseSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*CreateObjectReply, 1000)
+	pops := make([]*CreateObjectResponse, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedCreateObjectReply(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestExistsObjectRequestSize(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectRequest(popr, true)
-	size2 := proto.Size(p)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	size := p.Size()
-	if len(dAtA) != size {
-		t.Errorf("seed = %d, size %v != marshalled size %v", seed, size, len(dAtA))
-	}
-	if size2 != size {
-		t.Errorf("seed = %d, size %v != before marshal proto.Size %v", seed, size, size2)
-	}
-	size3 := proto.Size(p)
-	if size3 != size {
-		t.Errorf("seed = %d, size %v != after marshal proto.Size %v", seed, size, size3)
-	}
-}
-
-func BenchmarkExistsObjectRequestSize(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*ExistsObjectRequest, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedExistsObjectRequest(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func TestExistsObjectReplySize(t *testing.T) {
-	seed := time.Now().UnixNano()
-	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedExistsObjectReply(popr, true)
-	size2 := proto.Size(p)
-	dAtA, err := proto.Marshal(p)
-	if err != nil {
-		t.Fatalf("seed = %d, err = %v", seed, err)
-	}
-	size := p.Size()
-	if len(dAtA) != size {
-		t.Errorf("seed = %d, size %v != marshalled size %v", seed, size, len(dAtA))
-	}
-	if size2 != size {
-		t.Errorf("seed = %d, size %v != before marshal proto.Size %v", seed, size, size2)
-	}
-	size3 := proto.Size(p)
-	if size3 != size {
-		t.Errorf("seed = %d, size %v != after marshal proto.Size %v", seed, size, size3)
-	}
-}
-
-func BenchmarkExistsObjectReplySize(b *testing.B) {
-	popr := rand.New(rand.NewSource(616))
-	total := 0
-	pops := make([]*ExistsObjectReply, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedExistsObjectReply(popr, false)
+		pops[i] = NewPopulatedCreateObjectResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3662,10 +2366,10 @@ func BenchmarkGetObjectRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestGetObjectReplySize(t *testing.T) {
+func TestGetObjectResponseSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedGetObjectReply(popr, true)
+	p := NewPopulatedGetObjectResponse(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3684,12 +2388,12 @@ func TestGetObjectReplySize(t *testing.T) {
 	}
 }
 
-func BenchmarkGetObjectReplySize(b *testing.B) {
+func BenchmarkGetObjectResponseSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*GetObjectReply, 1000)
+	pops := make([]*GetObjectResponse, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedGetObjectReply(popr, false)
+		pops[i] = NewPopulatedGetObjectResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3734,10 +2438,10 @@ func BenchmarkDeleteObjectRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestDeleteObjectReplySize(t *testing.T) {
+func TestDeleteObjectResponseSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedDeleteObjectReply(popr, true)
+	p := NewPopulatedDeleteObjectResponse(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3756,12 +2460,12 @@ func TestDeleteObjectReplySize(t *testing.T) {
 	}
 }
 
-func BenchmarkDeleteObjectReplySize(b *testing.B) {
+func BenchmarkDeleteObjectResponseSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*DeleteObjectReply, 1000)
+	pops := make([]*DeleteObjectResponse, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedDeleteObjectReply(popr, false)
+		pops[i] = NewPopulatedDeleteObjectResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3770,10 +2474,10 @@ func BenchmarkDeleteObjectReplySize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestUpdateReferenceListRequestSize(t *testing.T) {
+func TestGetObjectStatusRequestSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListRequest(popr, true)
+	p := NewPopulatedGetObjectStatusRequest(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3792,12 +2496,12 @@ func TestUpdateReferenceListRequestSize(t *testing.T) {
 	}
 }
 
-func BenchmarkUpdateReferenceListRequestSize(b *testing.B) {
+func BenchmarkGetObjectStatusRequestSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*UpdateReferenceListRequest, 1000)
+	pops := make([]*GetObjectStatusRequest, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedUpdateReferenceListRequest(popr, false)
+		pops[i] = NewPopulatedGetObjectStatusRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3806,10 +2510,10 @@ func BenchmarkUpdateReferenceListRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestUpdateReferenceListReplySize(t *testing.T) {
+func TestGetObjectStatusResponseSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedUpdateReferenceListReply(popr, true)
+	p := NewPopulatedGetObjectStatusResponse(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3828,12 +2532,12 @@ func TestUpdateReferenceListReplySize(t *testing.T) {
 	}
 }
 
-func BenchmarkUpdateReferenceListReplySize(b *testing.B) {
+func BenchmarkGetObjectStatusResponseSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*UpdateReferenceListReply, 1000)
+	pops := make([]*GetObjectStatusResponse, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedUpdateReferenceListReply(popr, false)
+		pops[i] = NewPopulatedGetObjectStatusResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3842,10 +2546,10 @@ func BenchmarkUpdateReferenceListReplySize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestCheckRequestSize(t *testing.T) {
+func TestListObjectKeysRequestSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckRequest(popr, true)
+	p := NewPopulatedListObjectKeysRequest(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3864,12 +2568,12 @@ func TestCheckRequestSize(t *testing.T) {
 	}
 }
 
-func BenchmarkCheckRequestSize(b *testing.B) {
+func BenchmarkListObjectKeysRequestSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*CheckRequest, 1000)
+	pops := make([]*ListObjectKeysRequest, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedCheckRequest(popr, false)
+		pops[i] = NewPopulatedListObjectKeysRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3878,10 +2582,10 @@ func BenchmarkCheckRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestCheckResponseSize(t *testing.T) {
+func TestListObjectKeysResponseSize(t *testing.T) {
 	seed := time.Now().UnixNano()
 	popr := rand.New(rand.NewSource(seed))
-	p := NewPopulatedCheckResponse(popr, true)
+	p := NewPopulatedListObjectKeysResponse(popr, true)
 	size2 := proto.Size(p)
 	dAtA, err := proto.Marshal(p)
 	if err != nil {
@@ -3900,12 +2604,12 @@ func TestCheckResponseSize(t *testing.T) {
 	}
 }
 
-func BenchmarkCheckResponseSize(b *testing.B) {
+func BenchmarkListObjectKeysResponseSize(b *testing.B) {
 	popr := rand.New(rand.NewSource(616))
 	total := 0
-	pops := make([]*CheckResponse, 1000)
+	pops := make([]*ListObjectKeysResponse, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedCheckResponse(popr, false)
+		pops[i] = NewPopulatedListObjectKeysResponse(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -3914,33 +2618,6 @@ func BenchmarkCheckResponseSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func TestEmptyStringer(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedEmpty(popr, false)
-	s1 := p.String()
-	s2 := fmt.Sprintf("%v", p)
-	if s1 != s2 {
-		t.Fatalf("String want %v got %v", s1, s2)
-	}
-}
-func TestNamespaceStringer(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedNamespace(popr, false)
-	s1 := p.String()
-	s2 := fmt.Sprintf("%v", p)
-	if s1 != s2 {
-		t.Fatalf("String want %v got %v", s1, s2)
-	}
-}
-func TestObjectStringer(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedObject(popr, false)
-	s1 := p.String()
-	s2 := fmt.Sprintf("%v", p)
-	if s1 != s2 {
-		t.Fatalf("String want %v got %v", s1, s2)
-	}
-}
 func TestGetNamespaceRequestStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
 	p := NewPopulatedGetNamespaceRequest(popr, false)
@@ -3950,18 +2627,9 @@ func TestGetNamespaceRequestStringer(t *testing.T) {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestGetNamespaceReplyStringer(t *testing.T) {
+func TestGetNamespaceResponseStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedGetNamespaceReply(popr, false)
-	s1 := p.String()
-	s2 := fmt.Sprintf("%v", p)
-	if s1 != s2 {
-		t.Fatalf("String want %v got %v", s1, s2)
-	}
-}
-func TestListObjectsRequestStringer(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedListObjectsRequest(popr, false)
+	p := NewPopulatedGetNamespaceResponse(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
@@ -3977,27 +2645,9 @@ func TestCreateObjectRequestStringer(t *testing.T) {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestCreateObjectReplyStringer(t *testing.T) {
+func TestCreateObjectResponseStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCreateObjectReply(popr, false)
-	s1 := p.String()
-	s2 := fmt.Sprintf("%v", p)
-	if s1 != s2 {
-		t.Fatalf("String want %v got %v", s1, s2)
-	}
-}
-func TestExistsObjectRequestStringer(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedExistsObjectRequest(popr, false)
-	s1 := p.String()
-	s2 := fmt.Sprintf("%v", p)
-	if s1 != s2 {
-		t.Fatalf("String want %v got %v", s1, s2)
-	}
-}
-func TestExistsObjectReplyStringer(t *testing.T) {
-	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedExistsObjectReply(popr, false)
+	p := NewPopulatedCreateObjectResponse(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
@@ -4013,9 +2663,9 @@ func TestGetObjectRequestStringer(t *testing.T) {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestGetObjectReplyStringer(t *testing.T) {
+func TestGetObjectResponseStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedGetObjectReply(popr, false)
+	p := NewPopulatedGetObjectResponse(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
@@ -4031,45 +2681,45 @@ func TestDeleteObjectRequestStringer(t *testing.T) {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestDeleteObjectReplyStringer(t *testing.T) {
+func TestDeleteObjectResponseStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedDeleteObjectReply(popr, false)
+	p := NewPopulatedDeleteObjectResponse(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestUpdateReferenceListRequestStringer(t *testing.T) {
+func TestGetObjectStatusRequestStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedUpdateReferenceListRequest(popr, false)
+	p := NewPopulatedGetObjectStatusRequest(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestUpdateReferenceListReplyStringer(t *testing.T) {
+func TestGetObjectStatusResponseStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedUpdateReferenceListReply(popr, false)
+	p := NewPopulatedGetObjectStatusResponse(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestCheckRequestStringer(t *testing.T) {
+func TestListObjectKeysRequestStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCheckRequest(popr, false)
+	p := NewPopulatedListObjectKeysRequest(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {
 		t.Fatalf("String want %v got %v", s1, s2)
 	}
 }
-func TestCheckResponseStringer(t *testing.T) {
+func TestListObjectKeysResponseStringer(t *testing.T) {
 	popr := rand.New(rand.NewSource(time.Now().UnixNano()))
-	p := NewPopulatedCheckResponse(popr, false)
+	p := NewPopulatedListObjectKeysResponse(popr, false)
 	s1 := p.String()
 	s2 := fmt.Sprintf("%v", p)
 	if s1 != s2 {

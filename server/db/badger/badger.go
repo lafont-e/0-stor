@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2017-2018 GIG Technology NV and Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package badger
 
 import (
@@ -5,9 +21,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/zero-os/0-stor/server/db"
+
 	log "github.com/Sirupsen/logrus"
 	badgerdb "github.com/dgraph-io/badger"
-	"github.com/zero-os/0-stor/server/db"
 )
 
 const (
@@ -19,36 +36,45 @@ const (
 	cgInterval = 10 * time.Minute
 )
 
-// DB implements the db.DB interace
+// DB implements the db.DB interface
 type DB struct {
 	db         *badgerdb.DB
 	ctx        context.Context
 	cancelFunc context.CancelFunc
+	seqCache   *sequenceCache
 }
 
 // New creates new badger DB with default options
 func New(data, meta string) (*DB, error) {
+	if len(data) == 0 {
+		panic("no data directory defined")
+	}
+	if len(meta) == 0 {
+		panic("no meta directory defined")
+	}
 	opts := badgerdb.DefaultOptions
 	opts.SyncWrites = true
-	return NewWithOpts(data, meta, opts)
+	opts.Dir, opts.ValueDir = meta, data
+	return NewWithOpts(opts)
 }
 
 // NewWithOpts creates new badger DB with own options
-func NewWithOpts(data, meta string, opts badgerdb.Options) (*DB, error) {
-	if err := os.MkdirAll(meta, 0774); err != nil {
-		log.Errorf("Meta dir %q couldn't be created: %v", meta, err)
+func NewWithOpts(opts badgerdb.Options) (*DB, error) {
+	if err := os.MkdirAll(opts.Dir, 0774); err != nil {
+		log.Errorf("Meta dir %q couldn't be created: %v", opts.Dir, err)
 		return nil, err
 	}
 
-	if err := os.MkdirAll(data, 0774); err != nil {
-		log.Errorf("Data dir %q couldn't be created: %v", data, err)
+	if err := os.MkdirAll(opts.ValueDir, 0774); err != nil {
+		log.Errorf("Data dir %q couldn't be created: %v", opts.ValueDir, err)
 		return nil, err
 	}
-
-	opts.Dir = meta
-	opts.ValueDir = data
 
 	db, err := badgerdb.Open(opts)
+	if err != nil {
+		return nil, err
+	}
+	seqCache := newSequenceCache(db)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -56,11 +82,46 @@ func NewWithOpts(data, meta string, opts badgerdb.Options) (*DB, error) {
 		db:         db,
 		ctx:        ctx,
 		cancelFunc: cancel,
+		seqCache:   seqCache,
 	}
 
 	go badger.runGC()
 
 	return badger, err
+}
+
+// Set implements DB.Set
+func (bdb *DB) Set(key []byte, data []byte) error {
+	if key == nil {
+		return db.ErrNilKey
+	}
+
+	err := bdb.db.Update(func(tx *badgerdb.Txn) error {
+		return tx.Set(key, data)
+	})
+	if err != nil {
+		return mapBadgerError(err)
+	}
+	return nil
+}
+
+// SetScoped implements DB.SetScoped
+func (bdb *DB) SetScoped(scopeKey, data []byte) ([]byte, error) {
+	if scopeKey == nil {
+		return nil, db.ErrNilKey
+	}
+
+	key, err := bdb.seqCache.IncrementKey(scopeKey)
+	if err != nil {
+		return nil, err
+	}
+	err = bdb.db.Update(func(tx *badgerdb.Txn) error {
+		return tx.Set(key, data)
+	})
+	if err != nil {
+		return nil, mapBadgerError(err)
+	}
+	return key, nil
 }
 
 // Get implements DB.Get
@@ -113,71 +174,6 @@ func (bdb *DB) Exists(key []byte) (bool, error) {
 		return false, mapBadgerError(err)
 	}
 	return exists, nil
-}
-
-// Set implements DB.Set
-func (bdb *DB) Set(key []byte, val []byte) error {
-	if key == nil {
-		return db.ErrNilKey
-	}
-
-	err := bdb.db.Update(func(tx *badgerdb.Txn) error {
-		err := tx.Set(key, val)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return mapBadgerError(err)
-	}
-	return nil
-}
-
-// Update implements interface DB.Update
-func (bdb *DB) Update(key []byte, cb db.UpdateCallback) error {
-	if cb == nil {
-		panic("(*DB).Update expects a non-nil UpdateCallback")
-	}
-	if key == nil {
-		return db.ErrNilKey
-	}
-
-	err := bdb.db.Update(
-		func(tx *badgerdb.Txn) error {
-			var val []byte
-			if item, err := tx.Get(key); err == nil {
-				v, err := item.Value()
-				if err != nil {
-					return err
-				}
-				val = make([]byte, len(v))
-				copy(val, v)
-			} else if err != badgerdb.ErrKeyNotFound {
-				return err
-			}
-
-			output, err := cb(val)
-			if err != nil {
-				return err
-			}
-			if output == nil {
-				if val == nil {
-					return nil // nothing to do
-				}
-
-				// delete val
-				return tx.Delete(key)
-			}
-
-			// set value
-			return tx.Set(key, output)
-		},
-	)
-	if err != nil {
-		return mapBadgerError(err)
-	}
-	return nil
 }
 
 // Delete implements DB.Delete
@@ -247,7 +243,11 @@ func (bdb *DB) ListItems(ctx context.Context, prefix []byte) (<-chan db.Item, er
 					case <-ctx.Done():
 						// ensure we close item, so it becomes unusable
 						err := item.Close()
-						log.Warningf("context closed before item is closed, force-closing item (err: %v)", err)
+						if err != nil && err != db.ErrClosedItem {
+							log.Warningf("context closed before item is closed, force-closing item (err: %v)", err)
+						} else {
+							log.Warning("context closed before item is closed, force-closing item")
+						}
 						return nil // return early
 					}
 				}
@@ -266,8 +266,13 @@ func (bdb *DB) ListItems(ctx context.Context, prefix []byte) (<-chan db.Item, er
 
 // Close implements DB.Close
 func (bdb *DB) Close() error {
+	// purge all cached sequences
+	bdb.seqCache.Purge()
+
+	// cancel (db) context
 	bdb.cancelFunc()
 
+	// close db
 	err := bdb.db.Close()
 	if err != nil {
 		return mapBadgerError(err)
@@ -329,7 +334,7 @@ type Item struct {
 
 // Key implements interface Item.Key
 func (item *Item) Key() []byte {
-	if item.item == nil {
+	if item.close == nil {
 		return nil
 	}
 
@@ -338,7 +343,7 @@ func (item *Item) Key() []byte {
 
 // Value implements interface Item.Value
 func (item *Item) Value() ([]byte, error) {
-	if item.item == nil {
+	if item.close == nil {
 		return nil, db.ErrClosedItem
 	}
 	return item.item.Value()
@@ -349,7 +354,7 @@ func (item *Item) Error() error { return nil }
 
 // Close implements interface Item.Close
 func (item *Item) Close() error {
-	if item.item == nil {
+	if item.close == nil {
 		return db.ErrClosedItem
 	}
 
@@ -357,7 +362,7 @@ func (item *Item) Close() error {
 	item.close()
 
 	// make item useless
-	item.item, item.close = nil, nil
+	item.close = nil
 	return nil
 }
 
