@@ -5,7 +5,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/paulbellamy/ratecounter"
 	"github.com/zero-os/0-stor/benchmark/config"
 	"github.com/zero-os/0-stor/client"
 )
@@ -75,12 +74,12 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	}
 
 	var (
-		tick         = time.Tick(interval * 1)
-		start        time.Time
-		counter      int64
-		rc           = ratecounter.NewRateCounter(interval)
-		result       = &Result{}
-		maxIteration = len(wb.keys)
+		tick            = time.Tick(interval * 1)
+		start           time.Time
+		counter         int64
+		intervalCounter int64
+		result          = &Result{}
+		maxIteration    = len(wb.keys)
 	)
 
 	start = time.Now()
@@ -94,14 +93,15 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 			timeout = nil
 			i = maxIteration
 		case <-tick:
-			result.PerInterval = append(result.PerInterval, rc.Rate())
+			result.PerInterval = append(result.PerInterval, intervalCounter)
+			intervalCounter = 0
 		default:
 			_, err := wb.client.Write(key, wb.value, nil)
 			if err != nil {
 				log.Errorf("Error write request to client: %v", err)
 				return nil, err
 			}
-			rc.Incr(1)
+			intervalCounter++
 			counter++
 		}
 
@@ -111,7 +111,7 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	}
 	result.Duration = Duration{time.Since(start)}
 	result.Count = counter
-	result.PerInterval = append(result.PerInterval, rc.Rate())
+	result.PerInterval = append(result.PerInterval, intervalCounter)
 
 	return result, nil
 }
