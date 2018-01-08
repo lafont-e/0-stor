@@ -33,12 +33,15 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 	// set bencher fields
 	rb.scenarioID = scenarioID
 	rb.scenario = scenario
+	var ops int
 	if scenario.BenchConf.Operations <= 0 {
-		scenario.BenchConf.Operations = defaultOperations
+		ops = defaultOperations
+	} else {
+		ops = scenario.BenchConf.Operations
 	}
 
 	// generate data
-	for i := 0; i < scenario.BenchConf.Operations; i++ {
+	for i := 0; i < ops; i++ {
 		rb.keys = append(rb.keys, generateData(scenario.BenchConf.KeySize))
 	}
 
@@ -56,7 +59,6 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
 	return rb, nil

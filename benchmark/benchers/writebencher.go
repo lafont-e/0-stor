@@ -30,13 +30,15 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 	}
 	wb.scenarioID = scenarioID
 	wb.scenario = scenario
+	var ops int
 	if scenario.BenchConf.Operations <= 0 {
-		// wb.opsEmpty = true
-		scenario.BenchConf.Operations = defaultOperations
+		ops = defaultOperations
+	} else {
+		ops = scenario.BenchConf.Operations
 	}
 
 	// generate data
-	for i := 0; i < scenario.BenchConf.Operations; i++ {
+	for i := 0; i < ops; i++ {
 		wb.keys = append(wb.keys, generateData(scenario.BenchConf.KeySize))
 	}
 	wb.value = generateData(scenario.BenchConf.ValueSize)
@@ -82,16 +84,17 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	)
 
 	start = time.Now()
-	for i := 0; i < maxIteration; i++ {
+	for i := 0; ; i++ {
 		// loop over the available keys
 		key := wb.keys[i%maxIteration]
 
 		select {
 		case <-timeout:
+			//timeout reached, make exit condition true
+			timeout = nil
 			i = maxIteration
 		case <-tick:
 			result.PerInterval = append(result.PerInterval, rc.Rate())
-
 		default:
 			_, err := wb.client.Write(key, wb.value, nil)
 			if err != nil {
@@ -100,6 +103,10 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 			}
 			rc.Incr(1)
 			counter++
+		}
+
+		if timeout == nil && i >= maxIteration-1 {
+			break
 		}
 	}
 	result.Duration = Duration{time.Since(start)}
