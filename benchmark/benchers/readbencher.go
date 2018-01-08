@@ -121,12 +121,5 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 	result.Count = counter
 	result.PerInterval = append(result.PerInterval, rc.Rate())
 
-	rb.cleanup()
-
 	return result, nil
-}
-
-func (rb *ReadBencher) cleanup() {
-	rb.keys = nil
-	rb.value = nil
 }

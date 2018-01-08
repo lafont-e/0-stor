@@ -106,12 +106,5 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	result.Count = counter
 	result.PerInterval = append(result.PerInterval, rc.Rate())
 
-	wb.cleanup()
-
 	return result, nil
-}
-
-func (wb *WriteBencher) cleanup() {
-	wb.keys = nil
-	wb.value = nil
 }
