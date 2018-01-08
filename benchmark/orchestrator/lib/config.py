@@ -4,6 +4,7 @@
 import pdb
 import sys
 import time
+import os
 from re import split
 from copy import deepcopy
 import yaml
@@ -23,6 +24,8 @@ Parameters = {'block_size',
                 'distribution_data',
                 'distribution_parity',
                 'meta_shards_nr'}
+
+Profiles = { 'cpu', 'mem', 'trace', 'block'}
 
 class Config:
     """
@@ -52,7 +55,36 @@ class Config:
         # extract benchmarking parameters
         self.benchmark = iter(self.benchmark_generator(config.pop('benchmarks', None)))
         
+        # extract profiling parameter
+        self.profile = config.pop('profile', None)
+
+        if self.profile not in Profiles:
+            sys.exit("orchestrator config: profile mode '%s' is not supported"%self.profile)
+        
+        self.count_profile = 0
+
         self.deploy = SetupZstor()
+    
+    def new_profile_dir(self,path=""):
+        """
+        Creates new directory for profile information in given path and dumps current config
+        """
+        if self.profile:
+            directory = '%s/profile_information'%path
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            directory = '%s/profile_%s'%(directory,str(self.count_profile))         
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            file = "%s/config.yaml"%directory
+            with open(file, 'w+') as outfile:
+                yaml.dump({'scenarios': {'scenario': self.template}}, 
+                            outfile, 
+                            default_flow_style=False, 
+                            default_style='')             
+            self.count_profile += 1    
+            return directory
+        return "" 
 
     def benchmark_generator(self,benchmarks):
         """

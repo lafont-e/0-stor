@@ -10,6 +10,7 @@ from yaml import dump
 from subprocess import run
 from lib import Config
 from lib import Report
+from lib.bench_client import Bench_client
 import time
 
 def main(argv):    
@@ -47,6 +48,9 @@ def main(argv):
     # initialise report opject
     report = Report(report_directory)
 
+    # initialize benchmarking tool
+    benchmarking = Bench_client()
+
     # loop over all given benchmarks
     try:
         while True:
@@ -83,8 +87,10 @@ def main(argv):
                     config.wait_local_servers_to_start()                                  
                     
                     # perform benchmarking 
-                    run(["zstorbench", "-C", output_config, "--out-benchmark", result_benchmark_file])
-                    
+                    benchmarking.run(config=output_config, 
+                                     out=result_benchmark_file,
+                                     profile=config.profile, 
+                                     profile_dir=config.new_profile_dir(report_directory))                    
                     # stop zstor
                     config.stop_zstor()  
 

@@ -31,3 +31,4 @@ template:
     operations: 0
     key_size: 48
     ValueSize: 128
+profile: cpu
