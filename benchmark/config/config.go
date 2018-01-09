@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zero-os/0-stor/client"
+	"github.com/zero-os/0-stor/client/itsyouonline"
 	validator "gopkg.in/validator.v2"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -18,6 +19,18 @@ import (
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
+
+var (
+	// ErrZeroDataShards represents an error where no data shards were found in config
+	ErrZeroDataShards = errors.New("No data shards in config")
+
+	// ErrZeroMetaShards represents an error where no data shards were found in config
+	ErrZeroMetaShards = errors.New("No meta shards in config")
+
+	// ErrNotEnoughDistributionShards represents an error where there were not enough
+	// data shards for the specified distribution data + parity shards
+	ErrNotEnoughDistributionShards = errors.New("Not enough data shards for Pipeline Distribution config")
+)
 
 // ClientConf represents a client banchmark config
 type ClientConf struct {
@@ -35,64 +48,25 @@ func (clientConf *ClientConf) Validate() error {
 
 // Scenario represents a scenario
 type Scenario struct {
-	Policy    client.Policy   `yaml:"zstor_config" validate:"nonzero"`
-	BenchConf BenchmarkConfig `yaml:"bench_conf" validate:"nonzero"`
+	ZstorConf client.Config   `yaml:"zstor_config" validate:"nonzero"`
+	BenchConf BenchmarkConfig `yaml:"bench_config" validate:"nonzero"`
 }
 
 // Validate validates a scenario
 func (sc *Scenario) Validate() error {
-	err := validatePolicy(sc.Policy)
-	if err != nil {
-		return err
-	}
-
 	return sc.BenchConf.Validate()
 }
 
-// validatePolicy validates a client.Policy specifically for benchmarking
-func validatePolicy(p client.Policy) error {
-	if len(p.DataShards) <= 0 {
-		return client.ErrZeroDataShards
-	}
-
-	if len(p.MetaShards) <= 0 {
-		return client.ErrZeroMetaShards
-	}
-
-	if p.ReplicationNr > len(p.DataShards) {
-		return client.ErrNotEnoughReplicationShards
-	}
-
-	if p.ReplicationNr == 1 {
-		return client.ErrReplicationMinimum
-	}
-
-	distributionNr := (p.DistributionNr + p.DistributionRedundancy)
-	if distributionNr > len(p.DataShards) {
-		return client.ErrNotEnoughDistributionShards
-	}
-
-	if p.Encrypt && p.EncryptKey == "" {
-		return client.ErrNoEncryptionKey
-	}
-
-	return nil
-}
-
-// SetupPolicy sets up the client.Policy for a benchmark.
-// Removes IYO fields.
-// Sets default namespaceing if empty
-func SetupPolicy(p *client.Policy) {
+// SetupClientConfig sets up the client.Client for a benchmark.
+// Removes IYO fields. (Benchmarks uses no-auth zstordb's)
+// Sets random namespace if empty
+func SetupClientConfig(c *client.Config) {
 	// empty IYO fields
-	p.IYOAppID = ""
-	p.IYOSecret = ""
+	c.IYO = itsyouonline.Config{}
 
-	// set namespaceing if not provided
-	if p.Organization == "" {
-		p.Organization = "zstor"
-	}
-	if p.Namespace == "" {
-		p.Namespace = "b-" + randomSuffix(4)
+	// set namespace if not provided
+	if c.Namespace == "" {
+		c.Namespace = "b-" + randomSuffix(4)
 	}
 }
 
@@ -113,7 +87,7 @@ type BenchmarkConfig struct {
 	Operations int    `yaml:"operations"`
 	Clients    int    `yaml:"clients"`
 	KeySize    int    `yaml:"key_size" validate:"nonzero"`
-	ValueSize  int    `yaml:"ValueSize" validate:"nonzero"`
+	ValueSize  int    `yaml:"value_size" validate:"nonzero"`
 }
 
 // Validate validates a BenchmarkConfig

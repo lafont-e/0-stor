@@ -1,6 +1,7 @@
 package benchers
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -43,10 +44,11 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 	for i := 0; i < ops; i++ {
 		rb.keys = append(rb.keys, generateData(scenario.BenchConf.KeySize))
 	}
+	rb.value = generateData(scenario.BenchConf.ValueSize)
 
 	// initializing client
-	config.SetupPolicy(&scenario.Policy)
-	rb.client, err = client.New(scenario.Policy)
+	config.SetupClientConfig(&scenario.ZstorConf)
+	rb.client, err = client.NewClientFromConfig(scenario.ZstorConf, 1)
 	if err != nil {
 		log.Errorf("Error creating client: %v", err)
 		return nil, fmt.Errorf("Failed creating client: %v", err)
@@ -54,7 +56,7 @@ func NewReadBencher(scenarioID string, scenario *config.Scenario) (Benchmarker, 
 
 	// set testdata to client
 	for _, key := range rb.keys {
-		_, err := rb.client.Write(key, rb.value, nil)
+		_, err := rb.client.Write(key, bytes.NewReader(rb.value))
 		if err != nil {
 			return nil, err
 		}
@@ -106,9 +108,10 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 			result.PerInterval = append(result.PerInterval, intervalCounter)
 			intervalCounter = 0
 		default:
-			_, _, err := rb.client.Read(key)
+			buf := bytes.NewBuffer(nil)
+			err := rb.client.Read(key, buf)
 			if err != nil {
-				log.Errorf("Error write request to client: %v", err)
+				log.Errorf("Error read request to client: %v", err)
 				return nil, err
 			}
 			intervalCounter++
@@ -121,7 +124,9 @@ func (rb *ReadBencher) RunBenchmark() (*Result, error) {
 	}
 	result.Duration = Duration{time.Since(start)}
 	result.Count = counter
-	result.PerInterval = append(result.PerInterval, intervalCounter)
+	if intervalCounter != 0 {
+		result.PerInterval = append(result.PerInterval, intervalCounter)
+	}
 
 	return result, nil
 }

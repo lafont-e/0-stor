@@ -1,6 +1,7 @@
 package benchers
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -43,8 +44,8 @@ func NewWriteBencher(scenarioID string, scenario *config.Scenario) (Benchmarker,
 	wb.value = generateData(scenario.BenchConf.ValueSize)
 
 	// initializing client
-	config.SetupPolicy(&scenario.Policy)
-	wb.client, err = client.New(scenario.Policy)
+	config.SetupClientConfig(&scenario.ZstorConf)
+	wb.client, err = client.NewClientFromConfig(scenario.ZstorConf, 1)
 	if err != nil {
 		log.Errorf("Error creating client: %v", err)
 		return nil, fmt.Errorf("Failed creating client: %v", err)
@@ -96,7 +97,7 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 			result.PerInterval = append(result.PerInterval, intervalCounter)
 			intervalCounter = 0
 		default:
-			_, err := wb.client.Write(key, wb.value, nil)
+			_, err := wb.client.Write(key, bytes.NewReader(wb.value))
 			if err != nil {
 				log.Errorf("Error write request to client: %v", err)
 				return nil, err
@@ -111,7 +112,9 @@ func (wb *WriteBencher) RunBenchmark() (*Result, error) {
 	}
 	result.Duration = Duration{time.Since(start)}
 	result.Count = counter
-	result.PerInterval = append(result.PerInterval, intervalCounter)
+	if intervalCounter != 0 {
+		result.PerInterval = append(result.PerInterval, intervalCounter)
+	}
 
 	return result, nil
 }
