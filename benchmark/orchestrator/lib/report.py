@@ -334,21 +334,29 @@ class Report:
                     per_interval = result['perinterval']
                 except:
                     per_interval = []
-                # plot number of operations vs time only if per_interval is not empty
+                # plot number of operations vs time if per_interval is not empty
                 if len(per_interval)>0:
-                    # create time samples for every time unit
-                    max_time = min(int(duration+timeUnit), len(per_interval))
-                    time_line = [i for i in range(timeUnit, max_time)]
+                    # define time samples
+                    max_time = min(int(duration), len(per_interval))
+                    time_line = [i for i in range(timeUnit, max_time+timeUnit)]
 
+                    # timeplot
                     plt.figure()
-                    #import ipdb; ipdb.set_trace()
-                    plt.plot(time_line, per_interval[len(per_interval)-len(time_line):],'bo--', label=self.timeplots_added)
+                    plt.plot(time_line, per_interval[:len(time_line)],'bo--', label=self.timeplots_added)
                     plt.xlabel('time, '+time_unit_literal[4:])
-                    plt.ylabel('number of operations per '+time_unit_literal[4:])
+                    plt.ylabel('operations per '+time_unit_literal[4:])
+
+                    # define file name of the figure
                     file = '{0}/plot_per_interval_{1}_{2}.png'.format(self.directory, sc_name, str(self.timeplots_added))
+                    
+                    # save figure in file
                     plt.savefig(file)
                     plt.close()
+
+                    # add the file name to the list of files 
                     file_names.append(file)
+
+                    # increment timeplot count
                     self.timeplots_added+=1
         return file_names
 

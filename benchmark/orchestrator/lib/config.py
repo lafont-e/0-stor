@@ -27,6 +27,8 @@ Parameters = {'block_size',
 
 Profiles = { 'cpu', 'mem', 'trace', 'block'}
 
+Default_data_start_port = '1200'
+Default_meta_start_port = '1300'
 class Config:
     """
     Class Config includes functions to set up environment for the benchmarking:
@@ -58,7 +60,7 @@ class Config:
         # extract profiling parameter
         self.profile = config.pop('profile', None)
 
-        if self.profile not in Profiles:
+        if self.profile and (self.profile not in Profiles):
             sys.exit("orchestrator config: profile mode '%s' is not supported"%self.profile)
         
         self.count_profile = 0
@@ -138,47 +140,42 @@ class Config:
 
         self.meta_shards_nr = self.template['zstor_config']['meta_shards_nr']
 
-        data_shards = self.template['zstor_config']['data_shards']
-        meta_shards = self.template['zstor_config']['meta_shards']
+        self.data_start_port = self.get_port(self.template['zstor_config'].pop('data_start_port', Default_data_start_port))
+        self.meta_start_port = self.get_port(self.template['zstor_config'].pop('data_start_port', Default_meta_start_port))
 
-        self.port_data = port2int(split(':', data_shards[0])[-1])
-        self.port_meta = port2int(split(':', meta_shards[0])[-1])
-        self.template['zstor_config']['data_shards'] = self.fix_port_list(data_shards, self.data_shards_nr)
-        self.template['zstor_config']['meta_shards'] = self.fix_port_list(meta_shards, self.meta_shards_nr)
-        
+        self.template['zstor_config']['data_shards'] = self.fix_port_list(self.data_start_port, self.data_shards_nr)
+        self.template['zstor_config']['meta_shards'] = self.fix_port_list(self.meta_start_port, self.meta_shards_nr)                   
+        #import ipdb; ipdb.set_trace()
+
     def deploy_zstor(self):
         self.deploy.run_zstordb_servers(servers=self.data_shards_nr,
-                                    start_port=self.port_data,)
+                                    start_port=self.data_start_port,)
         self.deploy.run_etcd_servers(servers=self.meta_shards_nr,
-                                    start_port=self.port_meta)   
+                                    start_port=self.meta_start_port)   
 
     def stop_zstor(self):
         self.deploy.stop_etcd_servers()
         self.deploy.stop_zstordb_servers()
         self.deploy.cleanup()
 
+    @staticmethod
+    def get_port(addr=None):
+        if not addr:
+            return
+        try:
+            return port2int(addr)
+        except:
+            return port2int(split(':', addr)[-1])        
 
     @staticmethod
-    def fix_port_list(addrs, servers):
+    def fix_port_list(start_port, servers):
         """ 
         Correct list of addresses for the local server deployment.
         
-        @addrs gives list of addresses.
-            Preserve first given address delete others.
-        @servers defines required number of servers.
-        
-        Return list of localhosts using ports starting 
-        from the preserved @addrs and then +1 for each port.
+        From the given port +1 for each next port.
         """
-        if not addrs:
-            return []
-        try:
-            [host, start_port] = split(':', addrs[0])
-        except ValueError:
-            host = "127.0.0.1"
-            start_port = addrs[0]
-
-        start_port = port2int(start_port)
+        host = "127.0.0.1"
+      
         new_addrs=[]
         for port in range(start_port, start_port+servers):
             new_addrs.append("%s:%s"%(host,port))
@@ -204,14 +201,7 @@ class Config:
                     servers+=1
                 if time.time() > timeout:
                     print("timeout error: couldn't run all required servers")
-                    break
-
-def port2int(port):
-    try:
-        port = int(port)
-    except ValueError:
-        sys.exit("error config: wrong port format")        
-    return port    
+                    break   
         
 class Benchmark():
     """ 
@@ -263,3 +253,10 @@ class BenchmarkPair():
             # define empty benchmark
             self.prime = Benchmark()
             self.second = Benchmark()                                               
+
+def port2int(port):
+    try:
+        port = int(port)
+    except ValueError:
+        sys.exit("error config: wrong port format")        
+    return port             
