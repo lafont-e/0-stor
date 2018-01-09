@@ -5,9 +5,12 @@ MODULE=pydaemon
 
 ROOT=$(git rev-parse --show-toplevel)
 CLIENT=${ROOT}/daemon/client/${MODULE}
+GENERATED=${CLIENT}/generated
 
-mkdir -p ${CLIENT}
-rm -rf ${CLIENT}/schema
+rm -rf ${GENERATED}
+mkdir -p ${GENERATED}
 
-python -m grpc_tools.protoc -I${ROOT}/daemon/api/grpc/ --python_out=${CLIENT} --grpc_python_out=${CLIENT} schema/daemon.proto
-touch ${CLIENT}/schema/__init__.py
+python -m grpc_tools.protoc -I${ROOT}/daemon/api/grpc/schema --python_out=${GENERATED} --grpc_python_out=${GENERATED} daemon.proto
+touch ${GENERATED}/__init__.py
+2to3 -w ${GENERATED}
+rm -rf ${GENERATED}/*.bak
