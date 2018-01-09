@@ -15,7 +15,8 @@
 import grpc
 
 from . import namespace
-from . import file as file
+from . import file
+from . import data
 
 
 class Client:
@@ -25,6 +26,7 @@ class Client:
         # initialize stubs
         self._namespace = namespace.Namespace(channel)
         self._file = file.File(channel)
+        self._data = data.Data(channel)
 
     @property
     def namespace(self):
@@ -33,3 +35,7 @@ class Client:
     @property
     def file(self):
         return self._file
+
+    @property
+    def data(self):
+        return self._data
