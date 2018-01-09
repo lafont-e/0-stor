@@ -1,7 +1,10 @@
 import grpc
 
-from .schema import daemon_pb2_grpc as stubs
-from .schema import daemon_pb2 as model
+from .generated import daemon_pb2_grpc as stubs
+from .generated import daemon_pb2 as model
+
+from . import namespace
+from . import file as file
 
 
 class Client:
@@ -9,8 +12,13 @@ class Client:
         channel = grpc.insecure_channel(address)
 
         # initialize stubs
-        self._namespace = stubs.NamespaceServiceStub(channel)
+        self._namespace = namespace.Namespace(channel)
+        self._file = file.File(channel)
 
     @property
     def namespace(self):
         return self._namespace
+
+    @property
+    def file(self):
+        return self._file
