@@ -15,15 +15,13 @@ from subprocess import check_output
 # list of supported benchmark parameters
 Parameters = {'block_size', 
                 'key_size', 
-                'ValueSize', 
+                'value_size', 
                 'clients', 
-                'encrypt', 
-                'compress', 
+                'mode',         # compression 
                 'method',
-                'replication_max_size',
-                'distribution_data',
-                'distribution_parity',
-                'meta_shards_nr'}
+                'block_size',
+                'data_shards',
+                'parity_shards'}
 
 Profiles = { 'cpu', 'mem', 'trace', 'block'}
 
@@ -101,24 +99,31 @@ class Config:
         
     def alter_template(self, id, val):        
         """
-        Update ztor config in accordance with the current benchmark config
+        Recurcively search and ppdate @id config field with new value @val
         """
-        for item in self.template:
-            # loop over scenario config
-            for key in self.template[item]:
-                if  key == id:                   
-                    # define type of the parameter
-                    parameter_type = type(self.template[item][key])               
+        def replace(d, id, val):
+            for key in list(d.keys()):
+                v = d[key]
+                #import ipdb; ipdb.set_trace()
+                if isinstance(v, dict):
+                    if replace(v, id, val):
+                        return True
+                else:
+                    if key == id:
+                        parameter_type = type(d[key])
+                        try:
+                            d[key] = parameter_type(val)
+                        except ValueError:
+                            sys.exit("orchestrator config: cannot convert val = {} to type {}".format(val,parameter_type))
+                        return True
+            return False
+        if not replace(self.template, id, val):
+            sys.exit("orchestrator config: parameter %s is not supported"%id)
 
-                    # update parameter of the scenario                
-                    try:
-                        self.template[item][key] = parameter_type(val)
-                    except:
-                        sys.exit("orchestrator config: cannot convert val = {} to type {}".format(val,parameter_type))
-                    
     def restore_template(self):
         self.template = deepcopy(self._template0)
-        
+
+
     def save(self, file_name):
         """
         Save current config to file
@@ -133,25 +138,34 @@ class Config:
 
     def update_deployment_config(self):
         """ 
-        Fetch current zstor server deployment config        
+        Fetch current zstor server deployment config
         """
-        self.data_shards_nr=self.template['zstor_config']['distribution_data']+ \
-                        self.template['zstor_config']['distribution_parity']
 
-        self.meta_shards_nr = self.template['zstor_config']['meta_shards_nr']
+        try:
+            self.datastor =  self.template['zstor_config']['datastor']
+            distribution = self.datastor['pipeline']['distribution']
+            self.data_shards_nr=distribution['data_shards'] + distribution['parity_shards']
+        except:
+            print("orchestrator config: distribution config is not given correctly")
+            raise
+        
+        try:
+            self.metastor  = self.template['zstor_config']['metastor']['db']
+            self.meta_shards_nr = self.metastor['meta_shards_nr']
+        except:
+            print("orchestrator config: number of metastor servers is not given")
+            raise
 
-        self.data_start_port = self.get_port(self.template['zstor_config'].pop('data_start_port', Default_data_start_port))
-        self.meta_start_port = self.get_port(self.template['zstor_config'].pop('data_start_port', Default_meta_start_port))
-
-        self.template['zstor_config']['data_shards'] = self.fix_port_list(self.data_start_port, self.data_shards_nr)
-        self.template['zstor_config']['meta_shards'] = self.fix_port_list(self.meta_start_port, self.meta_shards_nr)                   
-        #import ipdb; ipdb.set_trace()
+        self.data_start_port = self.get_port(self.datastor.pop('data_start_port', Default_data_start_port))
+        self.meta_start_port = self.get_port(self.metastor.pop('meta_start_port', Default_meta_start_port))
 
     def deploy_zstor(self):
         self.deploy.run_zstordb_servers(servers=self.data_shards_nr,
                                     start_port=self.data_start_port,)
         self.deploy.run_etcd_servers(servers=self.meta_shards_nr,
-                                    start_port=self.meta_start_port)   
+                                    start_port=self.meta_start_port)
+        self.datastor.update({'shards': self.deploy.data_shards})
+        self.metastor.update({'endpoints': self.deploy.meta_shards})                                      
 
     def stop_zstor(self):
         self.deploy.stop_etcd_servers()
@@ -185,8 +199,7 @@ class Config:
         """ 
         Check whether ztror and etcd servers are listening on the ports 
         """
-        addrs = self.template['zstor_config']['data_shards'] \
-                + self.template['zstor_config']['meta_shards']   
+        addrs = self.deploy.data_shards + self.deploy.meta_shards
         servers = 0                
         timeout = time.time() + 20
         while servers<len(addrs):

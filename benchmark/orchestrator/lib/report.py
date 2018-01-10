@@ -27,14 +27,11 @@ TimeUnits = {'per_second': 1,
                'per_hour': 3600}
 
 FilterKeys={'organization', 
-               'namespace', 
-              'iyo_app_id', 
-              'iyo_app_id', 
-          'iyo_app_secret',
-             'data_shards', 
-             'meta_shards', 
-             'meta_shards',
-             'encrypt_key'}
+            'namespace', 
+            'iyo',  
+            'shards', 
+            'db', 
+            'hashing'}
 
 class Aggregator:
     """
@@ -70,7 +67,6 @@ class Report:
 
         self.reports_added = 0   # keep track of added reports
         self.timeplots_added = 0 # keep track of number of timeplots added 
-        self.scenarios = {}
 
     def init_aggregator(self, benchmark=None):
         self.aggregator = Aggregator(benchmark)
@@ -81,13 +77,22 @@ class Report:
         """
         with open(input_file, 'r') as stream:
             try:
-                self.scenarios = yaml.load(stream)['scenarios']
+                scenarios = yaml.load(stream)['scenarios']
             except yaml.YAMLError as exc:
                 sys.exit(exc)
-        err = self.scenarios['scenario'].pop('error', None)
+        keys = [k for k in scenarios]
+        if len(keys) != 1:
+            sys.exit('result: exactly one scenario is expected in this context')
+          
+        self.scenario = scenarios[keys[0]]
+
+        err = self.scenario.pop('error', None)
         if err:
             sys.exit("last benchmark exited with error: %s"%err )
-        self.filter(self.scenarios, FilterKeys)
+        
+        if len(scenarios) > 1:
+            sys.exit("orchestrator config: expected only one scenario each time" )
+        self.filter(self.scenario, FilterKeys)
         
     @staticmethod
     def filter(d, filter_keys):
@@ -98,57 +103,82 @@ class Report:
         def filter(d, filter_keys):
             for key in list(d.keys()):
                 v = d[key]
-                if isinstance(v, dict):
-                    filter(v, filter_keys)
-                else:
-                    if key in filter_keys:
-                        d.pop(key, None)
+                if key in filter_keys:
+                    d.pop(key, None)    
+                else:            
+                    if isinstance(v, dict):
+                        filter(v, filter_keys)
+
         filter(d, filter_keys) 
 
 
     def aggregate(self, input_file):
         self.get_scenario_config(input_file)
-        th = self.__get_throughput__()       
+        th = self._get_throughput()      
+
         if self.aggregator.throughput: 
-            self.aggregator.throughput[-1].append(th[0])
+            self.aggregator.throughput[-1].append(th)
         else:
-            self.aggregator.throughput.append(th[0])
-    
-    def __get_throughput__(self):
-        throughput = []
-        for sc_name in self.scenarios:
-            scenario = self.scenarios[sc_name]
-            if 'error' in scenario:
-                exit(scenario['error'])
-            
-            if 'results' not in scenario:
-                sys.exit("no results are provided")
+            self.aggregator.throughput.append(th)
 
-            throughput.append(0)
-            for result in scenario['results']:    
-                # duration of the benchmarking
-                try:
-                    duration = float(result['duration'])
-                except:
-                    exit('duration is not given, or format is not float')   
+    def _get_scenario_results(self):
+        scenario = self.scenario.get('scenario')
+        if not scenario:
+            sys.exit("results: no scenario config")  
 
-                # number of operations in the benchmarking
-                try:
-                    count = int(result['count'])
-                except:
-                    exit('count is not given, or format is not int')   
+        zstor_config = scenario.get('zstor_config')
+        if not zstor_config:
+            sys.exit("results: no zstor_config")
+        
+        bench_config = scenario.get('bench_config')
+        if not bench_config:
+            sys.exit("results: no bench_config")  
+        
+        result_output = bench_config.get('result_output')
+        if not bench_config:
+            sys.exit("results: interval is not given (result_output)")          
 
-                # size of each value
-                try:
-                    value_size = int(scenario['scenario']['bench_conf']['ValueSize'])
-                except:
-                    exit('value size is not given, or format is not int')  
-                     
-                throughput[-1] += count*value_size/duration/len(scenario['results'])
-            
-            throughput[-1] = int(throughput[-1])
-           
-        return throughput
+        results = self.scenario.get('results')
+        if not results:
+            sys.exit("results: no results are provided")
+        return scenario, results
+        
+
+    def _get_throughput(self):
+        throughput = 0
+
+        scenario, results = self._get_scenario_results()
+
+        if not results:
+            sys.exit("no results are provided")
+        if not scenario:
+            sys.exit("no scenario config")
+
+        for result in results:    
+            # get duration of the benchmarking
+            try:
+                duration = float(result['duration'])
+            except:
+                sys.exit('result:duration is not given, or format is not float')   
+            if duration == 0:
+                sys.exit("result: duration can't be 0")
+
+            # number of operations in the benchmarking
+            try:
+                count = int(result['count'])
+            except:
+                exit('count is not given, or format is not int')   
+
+            # get size of each value
+            #import ipdb; ipdb.set_trace()
+            try:
+                value_size = int(scenario['bench_config']['value_size'])
+            except:
+                exit('orchestrator config: value size is not given, or format is not int')  
+                    
+            throughput += count*value_size/duration/len(results)
+
+        return int(throughput)
 
     def add_aggregation(self):
         # count reports added to a report file
@@ -157,7 +187,7 @@ class Report:
         fig_name = 'fig' +str(self.reports_added) + '.png'
 
         # filter results form scenario config before dumping to the report
-        self.filter(self.scenarios, ['results'])
+        self.filter(self.scenario, ['results'])
         
         with open(self.main_file, 'a+') as outfile:
             # refer the figure in the report
@@ -166,23 +196,23 @@ class Report:
             # add benchmark config
             outfile.write('**Benchmark config:** \n')
             outfile.write('```yaml \n')
-            yaml.dump(self.scenarios, outfile,default_flow_style=False)
+            yaml.dump(self.scenario, outfile,default_flow_style=False)
             outfile.write('\n```')
 
         # check if more then one output was collected   
         if sum(map(len, self.aggregator.throughput)) > 1:
             # create a bar plot
-            self.__bar_plot__( fig_name)
+            self._bar_plot( fig_name)
 
             # incerst bar plot to the report
             with open(self.main_file, 'a+') as outfile:
                 outfile.write("\n![Fig: throughput vs parameter]({0})".format(fig_name))            
 
         # add the table of the data sets
-        self.__add_table__()
+        self._add_table()
 
 
-    def __bar_plot__(self, fig_name):
+    def _bar_plot(self, fig_name):
         # define range  from prime parameter
         ticks_labels = self.aggregator.benchmark.prime.range
 
@@ -193,18 +223,19 @@ class Report:
         if len(self.aggregator.throughput) == 0:
             sys.exit("no results are included")
 
-        n_plots = len(self.aggregator.throughput[0])
+        max_throughput = max(max(self.aggregator.throughput))
 
-        """ figure settings """
+        """ figure settings """       
+        n_plots = len(self.aggregator.throughput[0]) # number of plots in the figure
 
-        # number of samples for each data set
-        n_samples = len(rng)
+        n_samples = len(rng) # number of samples for each data set
+  
+        width = rng[-1]/(n_samples*n_plots+1) # bar width
+       
+        gap = width/10  # gap between bars
 
-        # bar width
-        width = rng[-1]/(n_samples*n_plots+1)
-
-        # gap between bars
-        gap = width/10
+        diff_y = 0.06 # minimal relative difference in throughput between neighboring bars
+        label_y_gap = max_throughput/100
 
         # create figure
         fig, ax = plt.subplots()
@@ -235,8 +266,11 @@ class Report:
             #plt.tight_layout(pad=20)
 
             # add labels to bars
-            for i, v in enumerate(th):
-                ax.text(rng[i]-width/2, v , str(v), color='blue', fontweight='bold')
+            for j, v in enumerate(th):
+                if i:
+                    if abs(v-self.aggregator.throughput[i-1][j])/max_throughput<diff_y:
+                        continue
+                ax.text(rng[j]-width/2, v+label_y_gap , str(v), color='blue', fontweight='bold')
 
             # shift bars for the next plot
             rng = [x+gap+width for x in rng]
@@ -245,7 +279,7 @@ class Report:
         plt.savefig(self.directory+"/"+fig_name, bbox_extra_artists=(lgd,), bbox_inches='tight')       
         plt.close()
 
-    def __add_table__(self):         
+    def _add_table(self):         
         # add hidden table with data
         with open(self.main_file, 'a+') as outfile:
             # create a table
@@ -289,75 +323,66 @@ class Report:
         """
         Add timeplots to the report
         """
-        files = self.__plot_per_interval__()
+        files = self._plot_per_interval()
 
         if len(files)>0:
             with open(self.timeplots_collection, 'a+') as outfile:
                 outfile.write('\n**Config:**\n```yaml \n')
-                yaml.dump(self.scenarios, outfile, default_flow_style=False)
+                yaml.dump(self.scenario, outfile, default_flow_style=False)
                 outfile.write('\n```')
                 outfile.write("\n _____________ \n".format(str(self.reports_added)))
                 for file in files:
                     outfile.write("\n![Fig](../{0}) \n".format(file))
 
-    def __plot_per_interval__(self): 
+    def _plot_per_interval(self): 
         """
         Create timeplots
         """
         # file_names returns list of the output files
         file_names = []
 
-        # plot_per_interval creates plot of number of operations vs time
-        for sc_name in self.scenarios:
-            # loop over results for all scenarios
-            scenario = self.scenarios[sc_name]
-            if 'error' in scenario:
-                exit(scenario['error'])
+        scenario, results = self._get_scenario_results()
 
-            # check if results are given
-            if len(scenario['results'])==0:
-                exit('no results')
+        # time_unit_literal represents the time unit for aggregation of the results
+        time_unit_literal = scenario['bench_config']['result_output']
+        timeUnit = TimeUnits.get(time_unit_literal)
+        
+        if not timeUnit:
+            sys.exit('results: result_output value is not supported')        
+        
+        for result in results:
+            # duration of the benchmarking
+            try:
+                duration = float(result['duration'])
+            except:
+                exit('duration format is not valid')        
 
-            # time_unit_literal represents the time unit for aggregation of the results
-            time_unit_literal = scenario['scenario']['bench_conf']['result_output']
-            timeUnit = TimeUnits[time_unit_literal]
-           
-            for idx, result in enumerate(scenario['results']):
-                # duration of the benchmarking
-                try:
-                    duration = float(result['duration'])
-                except:
-                    exit('duration format is not valid')        
+            # per_interval represents number of opperations per time unit
+            per_interval = result.get('perinterval')
 
-                # per_interval represents number of opperations per time unit
-                try:
-                    per_interval = result['perinterval']
-                except:
-                    per_interval = []
-                # plot number of operations vs time if per_interval is not empty
-                if len(per_interval)>0:
-                    # define time samples
-                    max_time = min(int(duration), len(per_interval))
-                    time_line = [i for i in range(timeUnit, max_time+timeUnit)]
+            # plot number of operations vs time if per_interval is not empty
+            if per_interval:
+                # define time samples
+                max_time = min(int(duration), len(per_interval))
+                time_line = [i for i in range(timeUnit, max_time+timeUnit)]
 
-                    # timeplot
-                    plt.figure()
-                    plt.plot(time_line, per_interval[:len(time_line)],'bo--', label=self.timeplots_added)
-                    plt.xlabel('time, '+time_unit_literal[4:])
-                    plt.ylabel('operations per '+time_unit_literal[4:])
+                plt.figure()
+                plt.plot(time_line, per_interval[:len(time_line)],'bo--', label=self.timeplots_added)
+                plt.xlabel('time, '+time_unit_literal[4:])
+                plt.ylabel('operations per '+time_unit_literal[4:])
 
-                    # define file name of the figure
-                    file = '{0}/plot_per_interval_{1}_{2}.png'.format(self.directory, sc_name, str(self.timeplots_added))
-                    
-                    # save figure in file
-                    plt.savefig(file)
-                    plt.close()
+                # define file name of the figure
+                file = '{0}/plot_per_interval_{1}.png'.format(self.directory, str(self.timeplots_added))
+                
+                # save figure to file
+                plt.savefig(file)
+                plt.close()
 
-                    # add the file name to the list of files 
-                    file_names.append(file)
+                # add the file name to the list of files 
+                file_names.append(file)
 
-                    # increment timeplot count
-                    self.timeplots_added+=1
+                # increment timeplot count
+                self.timeplots_added+=1
         return file_names
 
 

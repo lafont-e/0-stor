@@ -73,15 +73,16 @@ def main(argv):
                     # alter the template config if prime parameter is given
                     if not benchmark.prime.empty():
                         config.alter_template(benchmark.prime.id, val_prime)  
-
+                    
+                    
                     # update deployment config 
                     config.update_deployment_config()
 
-                    # update config file
-                    config.save(output_config)
-
                     # deploy zstor
                     config.deploy_zstor()
+
+                    # update config file
+                    config.save(output_config)
 
                     # wait for servers to start
                     config.wait_local_servers_to_start()                                  
@@ -92,7 +93,7 @@ def main(argv):
                                      profile=config.profile, 
                                      profile_dir=config.new_profile_dir(report_directory))                    
                     # stop zstor
-                    config.stop_zstor()  
+                    config.stop_zstor()
 
                     # aggregate results
                     report.aggregate(result_benchmark_file)

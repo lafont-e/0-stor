@@ -7,6 +7,7 @@ from random import randint
 
 # SetupZstor is responsible for managing a zstor setup
 
+Base = '127.0.0.1' # base of addresses at the local host
 
 class SetupZstor:
 
@@ -14,6 +15,8 @@ class SetupZstor:
         self.zstor_nodes = []
         self.etcd_nodes = []
         self.cleanup_dirs = []
+        self.data_shards = []
+        self.meta_shards = []
 
     # start zstordb servers
     def run_zstordb_servers(self, servers=2, no_auth=True, jobs=0, start_port=1200, profile=None, profile_dir="profile", data_dir=None, meta_dir=None):
@@ -32,8 +35,11 @@ class SetupZstor:
 
             self.cleanup_dirs.extend((db_dir, md_dir))
 
+            port = str(start_port + i)
+            self.data_shards.append('%s:%s'%(Base,port))
+
             args = ["zstordb",
-                    "--listen", ":" + str(start_port + i),
+                    "--listen", ":" + port,
                     "--data-dir", db_dir,
                     "--meta-dir", md_dir,
                     "--jobs", str(jobs),
@@ -56,6 +62,7 @@ class SetupZstor:
 
     # stop zstordb servers
     def stop_zstordb_servers(self):
+        self.data_shards = []
         for node in self.zstor_nodes:
             node.terminate()
             _, err = node.communicate()
@@ -81,7 +88,11 @@ class SetupZstor:
 
         for i in range(0, servers):
             name = "node" + str(i)
-            client_port = base + str(start_port + i)
+
+            port = str(start_port + i)
+            self.meta_shards.append('%s:%s'%(Base,port))
+
+            client_port = base + port
             peer_port = base + str(start_port + 100 + i)
             init_cluster += name + "=" + peer_port + ","
 
@@ -116,6 +127,7 @@ class SetupZstor:
 
     # stop etcd servers
     def stop_etcd_servers(self):
+        self.meta_shards = []
         for node in self.etcd_nodes:
             node.terminate()
             _, err = node.communicate()
