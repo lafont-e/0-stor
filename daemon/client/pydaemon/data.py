@@ -49,23 +49,22 @@ class Data:
             model.DataReadRequest(chunks=chunks)
         ).data
 
-    # TODO: finish data client
-
-    def write_file(self, key, file_path):
+    def write_file(self, file_path):
         '''
         upload file to 0-stor
 
-        :param key: file key (bytes)
         :param file_path: path to local file to upload
 
+        :return: file chunks
         '''
-        return self._stub.WriteFile(
-            model.WriteFileRequest(key=key, filePath=file_path)
-        ).metadata
 
-    def read_file(self, key, file_path, mode=FileMode.Truncate, sync_io=False):
+        return self._stub.WriteFile(
+            model.DataWriteFileRequest(filePath=file_path)
+        ).chunks
+
+    def read_file(self, chunks, file_path, mode=FileMode.Truncate, sync_io=False):
         '''
-        :param key: file key
+        :param chunks: file chunks as returned from write_file
         :param file_path: local file path to download to
         :param mode: 0 = truncate, 1 = append, 2 = exclusive
         :param sync_io: use the O_SYNC on the file, forcing all write operation to be writen to the
@@ -73,79 +72,75 @@ class Data:
         '''
 
         return self._stub.ReadFile(
-            model.ReadFileRequest(key=key, filePath=file_path, fileMode=mode, synchronousIO=sync_io)
+            model.DataReadFileRequest(chunks=chunks, filePath=file_path, fileMode=mode, synchronousIO=sync_io)
         )
 
-    def write_stream(self, key, input, block_size=4096):
+    def write_stream(self, input, block_size=4096):
         '''
         Upload data from a file like object (input)
 
-        :param key: key (bytes)
         :param input: file like object (implements a read function which return 'bytes')
 
         :note: if input is an open file, make sure it's open in binary mode
         :return: metadata object
         '''
         def stream():
-            yield model.WriteStreamRequest(
-                metadata=model.WriteStreamRequest.Metadata(key=key)
-            )
             while True:
                 chunk = input.read(block_size)
                 if len(chunk) == 0:
                     break
-                yield model.WriteStreamRequest(
-                    data=model.WriteStreamRequest.Data(dataChunk=chunk)
+                yield model.DataWriteStreamRequest(
+                    dataChunk=chunk
                 )
 
-        return self._stub.WriteStream(stream()).metadata
+        return self._stub.WriteStream(stream()).chunks
 
-    def read_stream(self, key, output, chunk_size=4096):
+    def read_stream(self, chunks, output, chunk_size=4096):
         '''
         Download data to a file like object (output)
 
-        :param key: key (bytes)
+        :param chunks: chunks as returned by write_stream
         :param output: file like object (implements a write function which takey 'bytes')
         '''
 
         response = self._stub.ReadStream(
-            model.ReadStreamRequest(key=key, chunkSize=chunk_size)
+            model.DataReadStreamRequest(chunks=chunks, chunkSize=chunk_size)
         )
 
         for data in response:
             output.write(data.dataChunk)
 
-    def delete(self, key):
+    def delete(self, chunks):
         '''
-        Delete a file with key
+        Delete a data with chunks
 
-        :param key: key (bytes)
+        :param chunks: chunks
         '''
 
         return self._stub.Delete(
-            model.DeleteRequest(key=key)
+            model.DataDeleteRequest(chunks=chunks)
         )
 
-    def check(self, key, fast=True):
+    def check(self, chunks, fast=True):
         '''
-        Checks file state with key
+        Checks data state with key
 
-        :param key: key (bytes)
+        :param chunks: data chunks
         :param fast: fast check (bool)
 
         :return: check state (0 = invalid, 1 = valie, 2 = optimal)
         '''
         return self._stub.Check(
-            model.CheckRequest(key=key, fast=fast)
+            model.DataCheckRequest(chunks=chunks, fast=fast)
         ).status
 
-    def repair(self, key):
+    def repair(self, chunks):
         '''
         Reparis a file
 
-        :param key: key (bytes)
+        :param chunks: chunks
         '''
 
         return self._stub.Repair(
-            model.RepairRequest(key=key)
-        ).metadata
+            model.DataRepairRequest(chunks=chunks)
+        ).chunks
