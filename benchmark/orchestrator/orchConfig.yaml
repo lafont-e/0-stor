@@ -16,7 +16,7 @@ template:
     datastor:
       data_start_port: 1200
       pipeline:
-        block_size: 2048 #replication_max_size
+        block_size: 2048 
         compression:
           mode: default
         distribution:
@@ -27,7 +27,7 @@ template:
         meta_shards_nr: 2
         meta_start_port: 1300
       encryption:
-        private_key: #ab345678901234567890123456789012 #encrypt_key
+        private_key: ab345678901234567890123456789012
   bench_config:
     clients: 1
     method: write
@@ -36,4 +36,4 @@ template:
     duration: 3
     key_size: 48
     value_size: 128
-profile: 
+profile: cpu

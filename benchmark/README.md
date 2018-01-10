@@ -46,37 +46,43 @@ Here is an example of the config file:
 ``` yaml
 benchmarks:
 - prime_parameter:
-    id: distribution_data
-    range: 2,3,4,5
-- prime_parameter:
-    id: block_size
-    range: 128, 256, 512, 1024, 2048
+    id: value_size
+    range: 128, 256, 512, 1024, 2048, 4096
   second_parameter:
-    id: encrypt
-    range: true, false
+    id: key_size
+    range: 24, 48, 96    
+- prime_parameter:
+   id: value_size
+   range: 128, 256, 512, 1024, 2048
+  second_parameter:
+    id: clients
+    range: 1, 2, 3
 template:
   zstor_config:
-    data_shards:
-      - 127.0.0.1:1200
-    meta_shards:
-      - 127.0.0.1:1300
-    meta_shards_nr: 2
-    block_size: 2048
-    replication_nr: 2
-    replication_max_size: 4096
-    distribution_data: 2
-    distribution_parity: 1
-    compress: true
-    encrypt: false
-    encrypt_key: ab345678901234567890123456789012
-  bench_conf:
+    datastor:
+      data_start_port: 1200
+      pipeline:
+        block_size: 2048 
+        compression:
+          mode: default
+        distribution:
+          data_shards: 2
+          parity_shards: 1
+    metastor:
+      db:
+        meta_shards_nr: 2
+        meta_start_port: 1300
+      encryption:
+        private_key: ab345678901234567890123456789012
+  bench_config:
     clients: 1
     method: write
     result_output: per_second
-    duration: 10
     operations: 0
+    duration: 3
     key_size: 48
-    ValueSize: 128
+    value_size: 128
+profile: cpu
 ```
 Port of the local host given in `data shards` is used by the orchestrator as a starting port for zstor servers deployment. Each next server uses the port +1.
 Number of servers deployed is `distribution_data`+`distribution_parity`.
