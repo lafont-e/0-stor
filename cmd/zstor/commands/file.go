@@ -33,6 +33,11 @@ var fileCmd = &cobra.Command{
 	Short: "Upload or download files to/from (a) 0-stor server(s).",
 }
 
+// Used to hold file config flag values
+var fileCfg struct {
+	Namespace string
+}
+
 // fileUploadCmd represents the file-upload command
 var fileUploadCmd = &cobra.Command{
 	Use:   "upload [path]",
@@ -238,4 +243,6 @@ func init() {
 	fileMetadataCmd.Flags().BoolVar(
 		&fileMetadataCfg.JSONPrettyFormat, "json-pretty", false,
 		"Print the metadata in prettified JSON format instead of a custom human readable format.")
+	fileCmd.PersistentFlags().StringVarP(
+		&fileCfg.Namespace, "namespace", "n", "", "Overrides Namespace config option.")
 }

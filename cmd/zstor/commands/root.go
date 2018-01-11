@@ -60,22 +60,39 @@ var rootCfg struct {
 	JobCount   int
 }
 
+// getConfigFile Reads path configuration file and rewrites the Namespace
+// value if the user provided another one with the Flag --namespace
+func getConfigFile(path string) (*client.Config, error) {
+	cfg, err := client.ReadConfig(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Override namespace settings
+	if fileCfg.Namespace != "" {
+		cfg.Namespace = fileCfg.Namespace
+		log.Infof("Setting namespace config to [%s]", fileCfg.Namespace)
+	}
+
+	return cfg, nil
+}
+
 func getClient() (*client.Client, error) {
-	cfg, err := client.ReadConfig(rootCfg.ConfigFile)
+	cfg, err := getConfigFile(rootCfg.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
 	// create client
 	cl, err := client.NewClientFromConfigWithoutCaching(*cfg, rootCfg.JobCount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create 0-stor client: %v", err)
+		return nil, fmt.Errorf("failed to create 0-stor client: (%v)", err)
 	}
 
 	return cl, nil
 }
 
 func getMetaClient() (*metastor.Client, error) {
-	clientCfg, err := client.ReadConfig(rootCfg.ConfigFile)
+	clientCfg, err := getConfigFile(rootCfg.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +142,7 @@ func getMetaClient() (*metastor.Client, error) {
 }
 
 func getNamespaceManager() (*itsyouonline.Client, error) {
-	cfg, err := client.ReadConfig(rootCfg.ConfigFile)
+	cfg, err := getConfigFile(rootCfg.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
