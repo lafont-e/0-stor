@@ -31,9 +31,23 @@ import (
 var fileCmd = &cobra.Command{
 	Use:   "file",
 	Short: "Upload or download files to/from (a) 0-stor server(s).",
+	// overwrite the namespace config property, if it is given as a flag by the user
+	PersistentPreRunE: func(_cmd *cobra.Command, _args []string) error {
+		// Override namespace settings
+		if fileCfg.Namespace != "" {
+			config, err := getClientConfig()
+			if err != nil {
+				return err
+			}
+			log.Infof("overwrote namespace config property to '%s' (was: '%s')",
+				fileCfg.Namespace, config.Namespace)
+			config.Namespace = fileCfg.Namespace
+		}
+		return nil
+	},
 }
 
-// Used to hold file config flag values
+// Used to hold common file config flags
 var fileCfg struct {
 	Namespace string
 }
@@ -229,6 +243,9 @@ func init() {
 		fileRepairCmd,
 	)
 
+	fileCmd.PersistentFlags().StringVar(
+		&fileCfg.Namespace, "namespace", "", "Overrides Namespace (client) config property.")
+
 	fileUploadCmd.Flags().StringVarP(
 		&fileUploadCfg.Key, "key", "k", "",
 		"Key to use to store the file, required when uploading from STDIN, if empty use the name of the file as the key")
@@ -243,6 +260,4 @@ func init() {
 	fileMetadataCmd.Flags().BoolVar(
 		&fileMetadataCfg.JSONPrettyFormat, "json-pretty", false,
 		"Print the metadata in prettified JSON format instead of a custom human readable format.")
-	fileCmd.PersistentFlags().StringVarP(
-		&fileCfg.Namespace, "namespace", "n", "", "Overrides Namespace config option.")
 }
