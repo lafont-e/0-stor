@@ -120,7 +120,7 @@ func createSubOrganization(c *Client, org, suborg string) error {
 
 	if err != nil {
 		if resp.StatusCode == 409 {
-			return fmt.Errorf("[Error] namespace already exists code=%v, err=%v", resp.StatusCode, err)
+			return fmt.Errorf("[Error] %s exists code=%v, err=%v", body, resp.StatusCode, err)
 		}
 		return fmt.Errorf("code=%v, err=%v", resp.StatusCode, err)
 	}
