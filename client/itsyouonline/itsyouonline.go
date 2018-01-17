@@ -111,8 +111,26 @@ func (c *Client) CreateJWT(namespace string, perm Permission) (string, error) {
 
 }
 
+// Creates name as suborganization of org
+func createSubOrganization(c *Client, org, suborg string) error {
+	body := org + "." + suborg
+	sub := itsyouonline.Organization{Globalid: body}
+	fmt.Println("Creating ", body)
+
+	_, resp, err := c.iyoClient.Organizations.CreateNewSubOrganization(org, sub, nil, nil)
+
+	if err != nil {
+		if resp.StatusCode == 409 {
+			return fmt.Errorf("[Error] %s exists code=%v, err=%v", body, resp.StatusCode, err)
+		}
+		return fmt.Errorf("code=%v, err=%v", resp.StatusCode, err)
+	}
+	return nil
+}
+
 // CreateNamespace creates namespace as itsyouonline organization
-// It creates these organizations:
+// Verifies the full namespace path exists, and creates it if don't
+// It also creates....
 // - org.0stor.namespace.read
 // - org.0stor.namespace.write
 // - org.0stor.namespace.write
@@ -122,52 +140,43 @@ func (c *Client) CreateNamespace(namespace string) error {
 		return err
 	}
 
-	// create namespace org
-	namespaceID := c.cfg.Organization + "." + "0stor"
-	org := itsyouonline.Organization{
-		Globalid: namespaceID,
-	}
-	_, resp, err := c.iyoClient.Organizations.CreateNewSubOrganization(
-		c.cfg.Organization, org, nil, nil)
-	// make sure to ignore a StatusConflict (409) error,
-	// as this error is expected in case the 0stor suborganization already exists,
-	// which is the case if you created a 0-stor namespace before
-	if err != nil && resp.StatusCode != http.StatusConflict {
-		return fmt.Errorf("code=%v, err=%v", resp.StatusCode, err)
+	// Verify c.cfg.Organization
+	_, resp, err := c.iyoClient.Organizations.GetOrganization(c.cfg.Organization, nil, nil)
+
+	if err != nil && resp.StatusCode != 403 {
+		return fmt.Errorf("[Error] GetOrganization code=%v, err=%v", resp.StatusCode, err)
 	}
 
-	// create 0stor suborganization
-
-	org = itsyouonline.Organization{
-		Globalid: namespaceID + "." + namespace,
-	}
-	_, resp, err = c.iyoClient.Organizations.CreateNewSubOrganization(namespaceID, org, nil, nil)
-	if err != nil {
-		if resp.StatusCode == http.StatusConflict {
-			// provide a more user-friendly error message for known/expected errors
-			return fmt.Errorf("namespace %[1]s (%[2]s.%[1]s) already exists", namespace, namespaceID)
+	// Create c.cfg.Organization if non existent
+	org := c.cfg.Organization
+	if resp.StatusCode == 403 { // Forbiden, organization does not exist mainly
+		organization := itsyouonline.Organization{Globalid: org}
+		_, resp, err := c.iyoClient.Organizations.CreateNewOrganization(organization, nil, nil)
+		// 200 => Org Created, 409 => Org Existed, other errors needs to be reported
+		if err != nil && resp.StatusCode != 409 {
+			return fmt.Errorf("[Error] CreateNewOrganization code=%v, err=%v", resp.StatusCode, err)
 		}
-		return fmt.Errorf("code=%v, err=%v", resp.StatusCode, err)
-	}
-
-	namespaceID = namespaceID + "." + namespace
-
-	// create permission org
-	perm := Permission{
-		Read:   true,
-		Delete: true,
-		Write:  true,
-	}
-	for _, perm := range perm.perms() {
-		org := itsyouonline.Organization{
-			Globalid: namespaceID + "." + perm,
-		}
-		_, resp, err := c.iyoClient.Organizations.CreateNewSubOrganization(
-			namespaceID, org, nil, nil)
-		if err != nil {
-			return fmt.Errorf("code=%v, err=%v", resp.StatusCode, err)
+		// Create c.cfg.Organization.0stor
+		if err = createSubOrganization(c, org, "0stor"); err != nil {
+			return err
 		}
 	}
+
+	// Create c.cfg.Organization.0stor.namespace
+	org += ".0stor"
+	if err = createSubOrganization(c, org, namespace); err != nil {
+		return err
+	}
+
+	// Create c.cfg.Organization.0stor.namespace. permissions
+	org += "." + namespace
+	permissions := Permission{Read: true, Write: true, Delete: true}
+	for _, p := range permissions.perms() {
+		if err = createSubOrganization(c, org, p); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
