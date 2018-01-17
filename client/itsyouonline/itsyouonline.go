@@ -115,6 +115,7 @@ func (c *Client) CreateJWT(namespace string, perm Permission) (string, error) {
 func createSubOrganization(c *Client, org, suborg string) error {
 	body := org + "." + suborg
 	sub := itsyouonline.Organization{Globalid: body}
+	fmt.Println("Creating ", body)
 
 	_, resp, err := c.iyoClient.Organizations.CreateNewSubOrganization(org, sub, nil, nil)
 
@@ -163,20 +164,17 @@ func (c *Client) CreateNamespace(namespace string) error {
 
 	// Create c.cfg.Organization.0stor.namespace
 	org += ".0stor"
-	if err = createSubOrganization(c, org, namespace); err == nil {
-		// Create c.cfg.Organization.0stor.namespace.read
-		org += "." + namespace
-		if err = createSubOrganization(c, org, "read"); err == nil {
-			// Create c.cfg.Organization.0stor.namespace.write
-			if err = createSubOrganization(c, org, "write"); err == nil {
-				// Create c.cfg.Organization.0stor.namespace.delete
-				err = createSubOrganization(c, org, "delete")
-			}
-		}
+	if err = createSubOrganization(c, org, namespace); err != nil {
+		return err
 	}
 
-	if err != nil {
-		return err
+	// Create c.cfg.Organization.0stor.namespace. permissions
+	org += "." + namespace
+	permissions := Permission{Read: true, Write: true, Delete: true}
+	for _, p := range permissions.perms() {
+		if err = createSubOrganization(c, org, p); err != nil {
+			return err
+		}
 	}
 
 	return nil
