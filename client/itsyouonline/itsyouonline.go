@@ -115,7 +115,6 @@ func (c *Client) CreateJWT(namespace string, perm Permission) (string, error) {
 func createSubOrganization(c *Client, org, suborg string) error {
 	body := org + "." + suborg
 	sub := itsyouonline.Organization{Globalid: body}
-	fmt.Println("Creating ", body)
 
 	_, resp, err := c.iyoClient.Organizations.CreateNewSubOrganization(org, sub, nil, nil)
 
